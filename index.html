@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Shader Experiments</title>
+
+    <style>
+        html, body {
+            margin: 0;
+            padding: 0;
+        }
+
+        #shader-picker {
+            display: block;
+        }
+
+        #canvas-container {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+
+            height: 100vh;
+            width: 100vw;
+        }
+
+        #canvas {
+            display: block;
+            border: 3px solid lightslategray;
+        }
+    </style>
+</head>
+<body>
+    <select id="shader-picker">
+        <option value="checker">Checker</option>
+        <option value="gradient-axial">Gradient Axial</option>
+        <option value="gradient-linear-1">Gradient Linear 1</option>
+        <option value="gradient-linear-2">Gradient Linear 2</option>
+        <option value="gradient-linear-3">Gradient Linear 3</option>
+    </select>
+
+    <div id="canvas-container">
+        <canvas id="canvas" width="1024" height="1024"></canvas>
+    </div>
+
+    <script type="module" src="src/main.js"></script>
+</body>
+</html>
