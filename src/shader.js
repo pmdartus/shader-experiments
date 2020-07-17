@@ -18,6 +18,7 @@
  * @property {WebGL2RenderingContext} gl - The WebGL rendering context associated with the program
  */
 
+const VERTEX_COUNT = 6;
 const VERTEX_POSITION = [-1, -1, 1, -1, -1, 1, 1, -1, -1, 1, 1, 1];
 
 const VERTEX_SHADER = `#version 300 es
@@ -34,8 +35,8 @@ void main() {
  * @returns {WebGL2RenderingContext}
  */
 function getWebGLContext() {
-  const canvas = document.getElementById("canvas");
-  return canvas.getContext("webgl2");
+    const canvas = document.getElementById('canvas');
+    return canvas.getContext('webgl2');
 }
 
 /**
@@ -46,20 +47,20 @@ function getWebGLContext() {
  * @param {string} source
  */
 function createShader(gl, type, source) {
-  const shader = gl.createShader(type);
+    const shader = gl.createShader(type);
 
-  gl.shaderSource(shader, source);
-  gl.compileShader(shader);
+    gl.shaderSource(shader, source);
+    gl.compileShader(shader);
 
-  const success = gl.getShaderParameter(shader, gl.COMPILE_STATUS);
-  if (!success) {
-    console.error("Failed to compile shader", gl.getShaderInfoLog(shader));
+    const success = gl.getShaderParameter(shader, gl.COMPILE_STATUS);
+    if (!success) {
+        console.error('Failed to compile shader', gl.getShaderInfoLog(shader));
 
-    gl.deleteShader(shader);
-    return null;
-  }
+        gl.deleteShader(shader);
+        return null;
+    }
 
-  return shader;
+    return shader;
 }
 
 /**
@@ -70,21 +71,21 @@ function createShader(gl, type, source) {
  * @param {WebGLShader} fragmentShader
  */
 function createProgram(gl, vertexShader, fragmentShader) {
-  const program = gl.createProgram();
+    const program = gl.createProgram();
 
-  gl.attachShader(program, vertexShader);
-  gl.attachShader(program, fragmentShader);
-  gl.linkProgram(program);
+    gl.attachShader(program, vertexShader);
+    gl.attachShader(program, fragmentShader);
+    gl.linkProgram(program);
 
-  const sucess = gl.getProgramParameter(program, gl.LINK_STATUS);
-  if (!sucess) {
-    console.error("Failed to link shaders", gl.getProgramInfoLog(program));
+    const sucess = gl.getProgramParameter(program, gl.LINK_STATUS);
+    if (!sucess) {
+        console.error('Failed to link shaders', gl.getProgramInfoLog(program));
 
-    gl.deleteProgram(program);
-    return null;
-  }
+        gl.deleteProgram(program);
+        return null;
+    }
 
-  return program;
+    return program;
 }
 
 /**
@@ -93,26 +94,30 @@ function createProgram(gl, vertexShader, fragmentShader) {
  * @param {ShaderDefinition} definition
  * @returns {ShaderInstance}
  */
-export function instanciateShader(definition) {
-  const props = Object.fromEntries(
-    Object.entries(definition.props).map(([name, config]) => [
-      name,
-      config.default,
-    ])
-  );
+export function instantiateShader(definition) {
+    const props = Object.fromEntries(
+        Object.entries(definition.props).map(([name, config]) => [
+            name,
+            config.default,
+        ]),
+    );
 
-  const gl = getWebGLContext();
+    const gl = getWebGLContext();
 
-  const vertexShader = createShader(gl, gl.VERTEX_SHADER, VERTEX_SHADER);
-  const fragmentShader = createShader(gl, gl.FRAGMENT_SHADER, definition.source);
-  const program = createProgram(gl, vertexShader, fragmentShader);
+    const vertexShader = createShader(gl, gl.VERTEX_SHADER, VERTEX_SHADER);
+    const fragmentShader = createShader(
+        gl,
+        gl.FRAGMENT_SHADER,
+        definition.source,
+    );
+    const program = createProgram(gl, vertexShader, fragmentShader);
 
-  return {
-    definition,
-    props,
-    gl,
-    program,
-  };
+    return {
+        definition,
+        props,
+        gl,
+        program,
+    };
 }
 
 /**
@@ -120,50 +125,64 @@ export function instanciateShader(definition) {
  *
  * @param {ShaderInstance} shader
  */
-export function renderShader(shader) {
-  const { gl, program } = shader;
+export function renderShaderInstance(shader) {
+    const { gl, program } = shader;
 
-  const positionAttributeLocation = gl.getAttribLocation(program, "a_position");
-  const resolutionUniformLocation = gl.getUniformLocation(program, "u_resolution");
+    const positionAttributeLocation = gl.getAttribLocation(
+        program,
+        'a_position',
+    );
+    const resolutionUniformLocation = gl.getUniformLocation(
+        program,
+        'u_resolution',
+    );
 
-  const positionBuffer = gl.createBuffer();
-  gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
-  gl.bufferData(
-    gl.ARRAY_BUFFER,
-    new Float32Array(VERTEX_POSITION),
-    gl.STATIC_DRAW
-  );
+    const positionBuffer = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
+    gl.bufferData(
+        gl.ARRAY_BUFFER,
+        new Float32Array(VERTEX_POSITION),
+        gl.STATIC_DRAW,
+    );
 
-  const vao = gl.createVertexArray();
-  gl.bindVertexArray(vao);
-  gl.enableVertexAttribArray(positionAttributeLocation);
+    const vao = gl.createVertexArray();
+    gl.bindVertexArray(vao);
+    gl.enableVertexAttribArray(positionAttributeLocation);
 
-  gl.vertexAttribPointer(positionAttributeLocation, 2, gl.FLOAT, false, 0, 0);
+    gl.vertexAttribPointer(positionAttributeLocation, 2, gl.FLOAT, false, 0, 0);
 
-  gl.viewport(0, 0, gl.canvas.width, gl.canvas.height);
+    gl.viewport(0, 0, gl.canvas.width, gl.canvas.height);
 
-  gl.clearColor(0, 0, 0, 0);
-  gl.clear(gl.COLOR_BUFFER_BIT);
+    gl.clearColor(0, 0, 0, 0);
+    gl.clear(gl.COLOR_BUFFER_BIT);
 
-  gl.useProgram(program);
-  gl.bindVertexArray(vao);
+    gl.useProgram(program);
+    gl.bindVertexArray(vao);
 
-  gl.uniform2f(resolutionUniformLocation, gl.canvas.width, gl.canvas.height);
+    gl.uniform2f(resolutionUniformLocation, gl.canvas.width, gl.canvas.height);
 
-  for (const [name, def] of Object.entries(shader.definition.props)) {
-    const value = shader.props[name];
-    const uniformLocation = gl.getUniformLocation(program, `u_${name}`);
+    for (const [name, def] of Object.entries(shader.definition.props)) {
+        const value = shader.props[name];
+        const uniformLocation = gl.getUniformLocation(program, `u_${name}`);
 
-    switch (def.type) {
-      case 'int':
-        gl.uniform1i(uniformLocation, value);
-        break;
-    
-      default:
-        console.log(`Unknown prop type "${def.type}"`);
-        break;
+        switch (def.type) {
+            case 'int':
+                gl.uniform1i(uniformLocation, value);
+                break;
+
+            case 'float':
+                gl.uniform1f(uniformLocation, value);
+                break;
+            
+            case 'float2':
+                gl.uniform2f(uniformLocation, value[0], value[1]);
+                break
+
+            default:
+                console.log(`Unknown prop type "${def.type}"`);
+                break;
+        }
     }
-  }
 
-  gl.drawArrays(gl.TRIANGLES, 0, VERTEX_SHADER.length / 2);
+    gl.drawArrays(gl.TRIANGLES, 0, VERTEX_COUNT);
 }

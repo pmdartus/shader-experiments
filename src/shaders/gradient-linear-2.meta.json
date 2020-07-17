@@ -1,0 +1,14 @@
+{
+    "name": "linear-gradient-2",
+    "label": "Linear Gradient 2",
+    "props": {
+        "tiling": {
+            "label": "Tiling",
+            "type": "int",
+            "default": 1,
+            "min": 1,
+            "max": 16,
+            "step": 1
+        }
+    }
+}
