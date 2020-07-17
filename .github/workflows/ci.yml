@@ -9,10 +9,31 @@ jobs:
 
     steps:
     - uses: actions/checkout@v2
-    - name: Use Node.js
-      uses: actions/setup-node@v1
+    
+    - uses: actions/setup-node@v1
       with:
         node-version: '12.x'
-    - run: npm ci
-    - run: npm run lint
-    - run: npm run build
+    
+    - name: Install dependencies ⚙️
+      run: npm ci
+    
+    - name: Lint 🔎
+      run: npm run lint
+    
+    - name: Build 🔧
+      run: npm run build
+
+    - name: Package build artifacts 📦
+      run: |
+        mkdir public
+        cp -r dist/ public/
+        cp -r resources/ dist/
+        cp index.html dist/
+
+    - name: Deploy to GH pages 🚢
+      if: github.ref == 'refs/heads/master'
+      uses: peaceiris/actions-gh-pages@v3
+      with:
+        github_token: ${{ secrets.GITHUB_TOKEN }}
+        publish_dir: ./public
+
