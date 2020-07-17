@@ -25,9 +25,9 @@ jobs:
 
     - name: Package build artifacts 📦
       run: |
-        mkdir public
-        cp -r dist/ public/
-        cp -r resources/ dist/
+        mkdir public &&
+        cp -r dist/ public/ &&
+        cp -r resources/ dist/ &&
         cp index.html dist/
 
     - name: Deploy to GH pages 🚢
