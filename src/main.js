@@ -69,8 +69,8 @@ function updateShaderInstanceGui(shader, onPropChange) {
  */
 async function renderShader(shaderName) {
     const [meta, source] = await Promise.all([
-        fetch(`/src/shaders/${shaderName}.meta.json`).then((res) => res.json()),
-        fetch(`/src/shaders/${shaderName}.glsl`).then((res) => res.text()),
+        fetch(`src/shaders/${shaderName}.meta.json`).then((res) => res.json()),
+        fetch(`src/shaders/${shaderName}.glsl`).then((res) => res.text()),
     ]);
 
     const instance = instantiateShader({
