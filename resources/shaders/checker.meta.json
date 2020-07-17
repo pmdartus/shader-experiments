@@ -1,0 +1,14 @@
+{
+    "name": "checker",
+    "label": "Checker",
+    "props": {
+        "tiling": {
+            "label": "Tiling",
+            "type": "int",
+            "default": 2,
+            "min": 1,
+            "max": 16,
+            "step": 1
+        }
+    }
+}

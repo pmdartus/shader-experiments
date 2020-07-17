@@ -1,0 +1,16 @@
+{
+    "name": "gradient-axial",
+    "label": "Gradient Axial",
+    "props": {
+        "p1": {
+            "label": "Point 1",
+            "type": "float2",
+            "default": [0, 0]
+        },
+        "p2": {
+            "label": "Point 2",
+            "type": "float2",
+            "default": [1, 1]
+        }
+    }
+}
