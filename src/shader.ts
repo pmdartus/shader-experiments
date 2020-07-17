@@ -1,14 +1,33 @@
 import { ShaderDefinition, ShaderInstance, ShaderPropDefinition } from './types';
 
 const VERTEX_COUNT = 6;
-const VERTEX_POSITION = [-1, -1, 1, -1, -1, 1, 1, -1, -1, 1, 1, 1];
+const VERTEX_POSITION = [
+    -1, -1, 
+    -1, 1,
+    1, -1, 
+    -1, 1, 
+    1, 1,
+    1, -1, 
+];
+const TEXTURE_COORDINATES = [
+    0, 0,
+    0, 1,
+    1, 0,
+    0, 1,
+    1, 1,
+    1, 0
+];
 
 const VERTEX_SHADER = `#version 300 es
  
 in vec4 a_position;
+in vec2 a_textcoord;
+
+out vec2 v_textcoord;
  
 void main() {
   gl_Position = a_position;
+  v_textcoord = a_textcoord;
 }`;
 
 function getWebGLContext(): WebGL2RenderingContext {
@@ -24,9 +43,10 @@ function createShader(gl: WebGL2RenderingContext, type: number, source: string):
 
     const success = gl.getShaderParameter(shader, gl.COMPILE_STATUS);
     if (!success) {
+        const err = new Error(`Failed to compile shader ${gl.getShaderInfoLog(shader)}`);
         gl.deleteShader(shader);
-
-        throw new Error(`Failed to compile shader ${gl.getShaderInfoLog(shader)}`);
+        
+        throw err;
     }
 
     return shader;
@@ -41,9 +61,10 @@ function createProgram(gl: WebGL2RenderingContext, vertexShader: WebGLShader, fr
 
     const success = gl.getProgramParameter(program, gl.LINK_STATUS);
     if (!success) {
+        const err = new Error(`Failed to link shaders ${gl.getProgramInfoLog(program)}`);
         gl.deleteProgram(program);
 
-        throw new Error(`Failed to link shaders ${gl.getProgramInfoLog(program)}`);
+        throw err;
     }
 
     return program;
@@ -82,10 +103,6 @@ export function renderShaderInstance(shader: ShaderInstance): void {
         program,
         'a_position',
     );
-    const resolutionUniformLocation = gl.getUniformLocation(
-        program,
-        'u_resolution',
-    );
 
     const positionBuffer = gl.createBuffer();
     gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
@@ -98,8 +115,24 @@ export function renderShaderInstance(shader: ShaderInstance): void {
     const vao = gl.createVertexArray();
     gl.bindVertexArray(vao);
     gl.enableVertexAttribArray(positionAttributeLocation);
-
     gl.vertexAttribPointer(positionAttributeLocation, 2, gl.FLOAT, false, 0, 0);
+
+    const textCoordAttributeLocation = gl.getAttribLocation(
+        program,
+        'a_textcoord',
+    );
+
+    const textCoordBuffer = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, textCoordBuffer);
+    gl.bufferData(
+        gl.ARRAY_BUFFER,
+        new Float32Array(TEXTURE_COORDINATES),
+        gl.STATIC_DRAW,
+    );
+
+    gl.enableVertexAttribArray(textCoordAttributeLocation);
+    gl.vertexAttribPointer(textCoordAttributeLocation, 2, gl.FLOAT, false, 0, 0);
+
 
     gl.viewport(0, 0, gl.canvas.width, gl.canvas.height);
 
@@ -108,8 +141,6 @@ export function renderShaderInstance(shader: ShaderInstance): void {
 
     gl.useProgram(program);
     gl.bindVertexArray(vao);
-
-    gl.uniform2f(resolutionUniformLocation, gl.canvas.width, gl.canvas.height);
 
     for (const [name, def] of Object.entries(shader.definition.props)) {
         const value = shader.props[name];
