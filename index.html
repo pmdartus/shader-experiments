@@ -6,9 +6,14 @@
     <title>Shader Experiments</title>
 
     <style>
+        :root {
+            --background-color: #292929;
+        }
+
         html, body {
             margin: 0;
             padding: 0;
+            background: var(--background-color);
         }
 
         #canvas-container {
@@ -22,7 +27,6 @@
 
         #canvas {
             display: block;
-            border: 3px solid lightslategray;
         }
     </style>
 </head>
@@ -31,6 +35,6 @@
         <canvas id="canvas" width="1024" height="1024"></canvas>
     </div>
 
-    <script type="module" src="src/main.js"></script>
+    <script type="module" src="dist/bundle.js"></script>
 </body>
 </html>

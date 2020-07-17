@@ -1,4 +1,6 @@
-import { GUI } from 'https://unpkg.com/dat.gui@0.7.7/build/dat.gui.module.js';
+import { GUI } from 'dat.gui';
+
+import { ShaderInstance, ShaderPropDefinition } from './types.js';
 import { instantiateShader, renderShaderInstance } from './shader.js';
 
 const SHADER_LIST = [
@@ -9,13 +11,7 @@ const SHADER_LIST = [
     'gradient-linear-3',
 ];
 
-/**
- * Render a new GUI for the shader instance.
- *
- * @param {import("./shader.js").ShaderInstance} shader
- * @param {Function} onPropChange
- */
-function updateShaderInstanceGui(shader, onPropChange) {
+function updateShaderInstanceGui(shader: ShaderInstance, onPropChange: () => void) {
     const { definition, props } = shader;
 
     if (shaderInstanceGui) {
@@ -56,21 +52,16 @@ function updateShaderInstanceGui(shader, onPropChange) {
             }
 
             default:
-                console.log(`Unknown prop type "${def.type}"`);
+                console.log(`Unknown prop type "${(def as ShaderPropDefinition).type}"`);
                 break;
         }
     }
 }
 
-/**
- * Setup a new shader
- * 
- * @param {string} shaderName 
- */
-async function renderShader(shaderName) {
+async function renderShader(shaderName: string): Promise<void> {
     const [meta, source] = await Promise.all([
-        fetch(`src/shaders/${shaderName}.meta.json`).then((res) => res.json()),
-        fetch(`src/shaders/${shaderName}.glsl`).then((res) => res.text()),
+        fetch(`resources/shaders/${shaderName}.meta.json`).then((res) => res.json()),
+        fetch(`resources/shaders/${shaderName}.glsl`).then((res) => res.text()),
     ]);
 
     const instance = instantiateShader({
@@ -85,23 +76,12 @@ async function renderShader(shaderName) {
     renderShaderInstance(instance);
 }
 
-/**
- * Retrieve currently selected shader from the URL.
- * 
- * @returns {string} The selected shader name
- */
-function getShaderNameFromUrl() {
-    const { searchParams } = new URL(window.location);
+function getShaderNameFromUrl(): string | null {
+    const { searchParams } = new URL(String(window.location));
     return searchParams.get('shader');
 }
 
-/**
- * Update the URL to reflect shader change.
- * 
- * @param {string} shaderName The selected shader name
- * @param {boolean?} replace It true the current state is replaced otherwise a new entry is added.
- */
-function setShaderNameToUrl(shaderName, replace = false) {
+function setShaderNameToUrl(shaderName: string, replace = false): void {
     const data = {};
     const title = `Shader ${shaderName}`;
     const url = `?shader=${shaderName}`;
@@ -116,13 +96,14 @@ function setShaderNameToUrl(shaderName, replace = false) {
 let shaderName = getShaderNameFromUrl();
 
 // Check if the specified shader is a known shader otherwise reset it to the default value.
-if (!SHADER_LIST.includes(shaderName)) {
+if (!shaderName || !SHADER_LIST.includes(shaderName)) {
     shaderName = SHADER_LIST[0];
     setShaderNameToUrl(shaderName, true);
 }
 
 const config = {
-    shader: shaderName
+    shader: shaderName,
+    tiling: false,
 }
 
 const gui = new GUI();
@@ -134,12 +115,15 @@ const shaderDefinitionController = gui.add(config, 'shader', SHADER_LIST)
         renderShader(shaderName);
     });
 
-let shaderInstanceGui;
+gui.add(config, 'tiling')
+    .name('Tiling')
+
+let shaderInstanceGui: GUI | undefined;
 
 window.addEventListener('popstate', () => {
     const shaderName = getShaderNameFromUrl();
     shaderDefinitionController.setValue(shaderName);
 });
 
-renderShader(shaderName);
+renderShader(shaderName!);
 

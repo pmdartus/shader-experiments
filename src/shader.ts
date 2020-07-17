@@ -1,22 +1,4 @@
-/**
- * A shader definition
- *
- * @typedef {Object} ShaderDefinition
- * @property {string} name - The shader unique name
- * @property {string} label - The shader label
- * @property {Object} props - The shader property definition
- * @property {string} source - The WebGL fragment shader source
- */
-
-/**
- * An instantance of a ShaderDefinition
- *
- * @typedef {Object} ShaderInstance
- * @property {ShaderDefinition} definition - The shader definition
- * @property {Object} props - The instance properties
- * @property {WebGLProgram} program - The WebGL program resulting of the shader instanciation
- * @property {WebGL2RenderingContext} gl - The WebGL rendering context associated with the program
- */
+import { ShaderDefinition, ShaderInstance, ShaderPropDefinition } from './types';
 
 const VERTEX_COUNT = 6;
 const VERTEX_POSITION = [-1, -1, 1, -1, -1, 1, 1, -1, -1, 1, 1, 1];
@@ -29,72 +11,45 @@ void main() {
   gl_Position = a_position;
 }`;
 
-/**
- * Returns the page rendering context.
- *
- * @returns {WebGL2RenderingContext}
- */
-function getWebGLContext() {
-    const canvas = document.getElementById('canvas');
-    return canvas.getContext('webgl2');
+function getWebGLContext(): WebGL2RenderingContext {
+    const canvas = document.querySelector('canvas')!;
+    return canvas.getContext('webgl2')!;
 }
 
-/**
- * Create a new WebGL shader.
- *
- * @param {WebGL2RenderingContext} gl
- * @param {number} type
- * @param {string} source
- */
-function createShader(gl, type, source) {
-    const shader = gl.createShader(type);
+function createShader(gl: WebGL2RenderingContext, type: number, source: string): WebGLShader {
+    const shader = gl.createShader(type)!;
 
     gl.shaderSource(shader, source);
     gl.compileShader(shader);
 
     const success = gl.getShaderParameter(shader, gl.COMPILE_STATUS);
     if (!success) {
-        console.error('Failed to compile shader', gl.getShaderInfoLog(shader));
-
         gl.deleteShader(shader);
-        return null;
+
+        throw new Error(`Failed to compile shader ${gl.getShaderInfoLog(shader)}`);
     }
 
     return shader;
 }
 
-/**
- * Create a new WebGL shader program
- *
- * @param {WebGL2RenderingContext} gl
- * @param {WebGLShader} vertexShader
- * @param {WebGLShader} fragmentShader
- */
-function createProgram(gl, vertexShader, fragmentShader) {
-    const program = gl.createProgram();
+function createProgram(gl: WebGL2RenderingContext, vertexShader: WebGLShader, fragmentShader: WebGLShader): WebGLProgram {
+    const program = gl.createProgram()!;
 
     gl.attachShader(program, vertexShader);
     gl.attachShader(program, fragmentShader);
     gl.linkProgram(program);
 
-    const sucess = gl.getProgramParameter(program, gl.LINK_STATUS);
-    if (!sucess) {
-        console.error('Failed to link shaders', gl.getProgramInfoLog(program));
-
+    const success = gl.getProgramParameter(program, gl.LINK_STATUS);
+    if (!success) {
         gl.deleteProgram(program);
-        return null;
+
+        throw new Error(`Failed to link shaders ${gl.getProgramInfoLog(program)}`);
     }
 
     return program;
 }
 
-/**
- * Instanciate a shader from its definition
- *
- * @param {ShaderDefinition} definition
- * @returns {ShaderInstance}
- */
-export function instantiateShader(definition) {
+export function instantiateShader(definition: ShaderDefinition): ShaderInstance {
     const props = Object.fromEntries(
         Object.entries(definition.props).map(([name, config]) => [
             name,
@@ -120,12 +75,7 @@ export function instantiateShader(definition) {
     };
 }
 
-/**
- * Render the shader instance.
- *
- * @param {ShaderInstance} shader
- */
-export function renderShaderInstance(shader) {
+export function renderShaderInstance(shader: ShaderInstance): void {
     const { gl, program } = shader;
 
     const positionAttributeLocation = gl.getAttribLocation(
@@ -179,7 +129,7 @@ export function renderShaderInstance(shader) {
                 break
 
             default:
-                console.log(`Unknown prop type "${def.type}"`);
+                console.log(`Unknown prop type "${(def as ShaderPropDefinition).type}"`);
                 break;
         }
     }
