@@ -25,10 +25,10 @@ jobs:
 
     - name: Package build artifacts 📦
       run: |
-        mkdir public &&
-        cp -r dist/ public/ &&
-        cp -r resources/ dist/ &&
-        cp index.html dist/
+        mkdir public
+        cp -r dist/ public/
+        cp -r resources/ public/
+        cp index.html public/
 
     - name: Deploy to GH pages 🚢
       if: github.ref == 'refs/heads/master'
