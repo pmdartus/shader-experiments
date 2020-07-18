@@ -1,5 +1,7 @@
 import * as m3 from './utils/m3';
-import { Preview, ShaderPropDefinition } from './types';
+import { Preview, ShaderPropDefinition, ShaderInstance } from './types';
+
+const WORKFLOW_SIZE = 512;
 
 function resizeCanvas(canvas: HTMLCanvasElement): void {
     const { clientWidth, clientHeight, width, height } = canvas;
@@ -14,14 +16,18 @@ function resizeCanvas(canvas: HTMLCanvasElement): void {
     }
 }
 
-function setupSquare(gl: WebGLRenderingContext): void {
+function setupBox(gl: WebGLRenderingContext, x = 0, y = 0): void {
+    const halfSize = Math.floor(WORKFLOW_SIZE / 2);
+    const dx = x * WORKFLOW_SIZE;
+    const dy = y * WORKFLOW_SIZE;
+
     gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([
-        0, 0,
-        0, 1,
-        1, 0,
-        0, 1,
-        1, 1,
-        1, 0 
+        -halfSize + dx, -halfSize + dy,
+        -halfSize + dx, halfSize + dy,
+        halfSize + dx, -halfSize + dy,
+        -halfSize + dx, halfSize + dy,
+        halfSize + dx, halfSize + dy,
+        halfSize + dx, -halfSize + dy
     ]), gl.STATIC_DRAW);
 }
 
@@ -36,10 +42,51 @@ function setupTextureCoord(gl: WebGLRenderingContext): void {
     ]), gl.STATIC_DRAW);
 }
 
+function setShaderUniforms(gl: WebGLRenderingContext, shader: ShaderInstance): void {
+    const { program, definition, props } = shader;
+
+    for (const [name, def] of Object.entries(definition.props)) {
+        const value = props[name];
+        const uniformLocation = gl.getUniformLocation(program, `u_${name}`);
+
+        switch (def.type) {
+            case 'int':
+                gl.uniform1i(uniformLocation, value);
+                break;
+
+            case 'float':
+                gl.uniform1f(uniformLocation, value);
+                break;
+            
+            case 'float2':
+                gl.uniform2f(uniformLocation, value[0], value[1]);
+                break
+
+            default:
+                console.log(`Unknown prop type "${(def as ShaderPropDefinition).type}"`);
+                break;
+        }
+    }
+}
+
+function getProjectionMatrix(preview: Preview): m3.M3 {
+    const { canvas, props } = preview;
+
+    let matrix = m3.projection(canvas.clientWidth, canvas.clientHeight);
+    matrix = m3.translate(matrix, props.position[0], props.position[1]);
+    matrix = m3.scale(matrix, props.zoom, props.zoom);
+
+    return matrix;
+}
+
 export function createPreview(canvas: HTMLCanvasElement, props?: Partial<Preview['props']>): Preview {
     const gl = canvas.getContext('webgl2')!;
 
     resizeCanvas(canvas);
+
+    const { clientWidth, clientHeight } = canvas;
+    const x = clientWidth / 2;
+    const y = clientHeight / 2;
 
     return {
         canvas,
@@ -48,8 +95,8 @@ export function createPreview(canvas: HTMLCanvasElement, props?: Partial<Preview
         props: {
             shader: null,
             tiling: false,
-            position: [0.7, 0.5],
-            zoom: 800,
+            position: [x, y],
+            zoom: 1,
             ...props,
         }
     }
@@ -81,56 +128,42 @@ export function renderPreview(preview: Preview): void {
         );
     
         const positionBuffer = gl.createBuffer();
-        gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
-        setupSquare(gl);
- 
+        
         const vao = gl.createVertexArray();
         gl.bindVertexArray(vao);
 
+        gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
         gl.enableVertexAttribArray(positionAttributeLocation);
         gl.vertexAttribPointer(positionAttributeLocation, 2, gl.FLOAT, false, 0, 0);
 
         const textCoordBuffer = gl.createBuffer();
         gl.bindBuffer(gl.ARRAY_BUFFER, textCoordBuffer);
-        setupTextureCoord(gl);
-    
         gl.enableVertexAttribArray(textCoordAttributeLocation);
         gl.vertexAttribPointer(textCoordAttributeLocation, 2, gl.FLOAT, false, 0, 0);
     
         gl.useProgram(program);
         gl.bindVertexArray(vao);
 
-        let matrix = m3.projection(canvas.clientWidth, canvas.clientHeight);
-        matrix = m3.translate(matrix, props.position[0], props.position[1]);
-        matrix = m3.scale(matrix, props.zoom, props.zoom);
-
+        const matrix = getProjectionMatrix(preview);
         gl.uniformMatrix3fv(matrixUniformLocation, false, matrix);
     
-        for (const [name, def] of Object.entries(shader.definition.props)) {
-            const value = shader.props[name];
-            const uniformLocation = gl.getUniformLocation(program, `u_${name}`);
-    
-            switch (def.type) {
-                case 'int':
-                    gl.uniform1i(uniformLocation, value);
-                    break;
-    
-                case 'float':
-                    gl.uniform1f(uniformLocation, value);
-                    break;
-                
-                case 'float2':
-                    gl.uniform2f(uniformLocation, value[0], value[1]);
-                    break
-    
-                default:
-                    console.log(`Unknown prop type "${(def as ShaderPropDefinition).type}"`);
-                    break;
+        gl.bindBuffer(gl.ARRAY_BUFFER, textCoordBuffer);
+        setupTextureCoord(gl);
+
+        setShaderUniforms(gl, shader);
+
+        const min = props.tiling ? -1 : 0;
+        const max = props.tiling ? 1 : 0;
+
+        for (let x = min; x <= max; x++) {
+            for (let y = min; y <= max; y++) {
+                gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
+                setupBox(gl, x, y);
+        
+                const offset = 0;
+                const count = 6;
+                gl.drawArrays(gl.TRIANGLES, offset, count);
             }
         }
-    
-        const offset = 0;
-        const count = 6;
-        gl.drawArrays(gl.TRIANGLES, offset, count);
     }
 }
