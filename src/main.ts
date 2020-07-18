@@ -1,7 +1,8 @@
 import { GUI } from 'dat.gui';
 
-import { ShaderInstance, ShaderPropDefinition } from './types.js';
-import { instantiateShader, renderShaderInstance } from './shader.js';
+import { ShaderInstance, ShaderPropDefinition } from './types';
+import { instantiateShader } from './shader';
+import { createPreview, renderPreview } from './preview';
 
 const SHADER_LIST = [
     'checker',
@@ -11,7 +12,10 @@ const SHADER_LIST = [
     'gradient-linear-3',
 ];
 
-function updateShaderInstanceGui(shader: ShaderInstance, onPropChange: () => void) {
+function updateShaderInstanceGui(
+    shader: ShaderInstance,
+    onPropChange: () => void,
+) {
     const { definition, props } = shader;
 
     if (shaderInstanceGui) {
@@ -33,47 +37,73 @@ function updateShaderInstanceGui(shader: ShaderInstance, onPropChange: () => voi
                     .step(def.step)
                     .onChange(onPropChange);
                 break;
-            
+
             case 'float2': {
                 const float2Gui = shaderInstanceGui.addFolder(def.label);
                 float2Gui.open();
 
-                const propView = { 
-                    get x() { return props[name][0] },
-                    set x(val) { props[name][0] = val },
-                    
-                    get y() { return props[name][1] },
-                    set y(val) { props[name][1] = val },
+                const propView = {
+                    get x() {
+                        return props[name][0];
+                    },
+                    set x(val) {
+                        props[name][0] = val;
+                    },
+
+                    get y() {
+                        return props[name][1];
+                    },
+                    set y(val) {
+                        props[name][1] = val;
+                    },
                 };
 
-                float2Gui.add(propView, 'x').name('X').min(0).max(1).step(0.01).onChange(onPropChange);
-                float2Gui.add(propView, 'y').name('Y').min(0).max(1).step(0.01).onChange(onPropChange);
+                float2Gui
+                    .add(propView, 'x')
+                    .name('X')
+                    .min(0)
+                    .max(1)
+                    .step(0.01)
+                    .onChange(onPropChange);
+                float2Gui
+                    .add(propView, 'y')
+                    .name('Y')
+                    .min(0)
+                    .max(1)
+                    .step(0.01)
+                    .onChange(onPropChange);
                 break;
             }
 
             default:
-                console.log(`Unknown prop type "${(def as ShaderPropDefinition).type}"`);
+                console.log(
+                    `Unknown prop type "${(def as ShaderPropDefinition).type}"`,
+                );
                 break;
         }
     }
 }
 
-async function renderShader(shaderName: string): Promise<void> {
+async function loadShader(shaderName: string): Promise<void> {
     const [meta, source] = await Promise.all([
-        fetch(`resources/shaders/${shaderName}.meta.json`).then((res) => res.json()),
+        fetch(`resources/shaders/${shaderName}.meta.json`).then((res) =>
+            res.json(),
+        ),
         fetch(`resources/shaders/${shaderName}.glsl`).then((res) => res.text()),
     ]);
 
-    const instance = instantiateShader({
+    const shader = instantiateShader(preview, {
         ...meta,
         source,
     });
-    
-    updateShaderInstanceGui(instance, () => {
-        renderShaderInstance(instance);
+
+    preview.shader = shader;
+
+    updateShaderInstanceGui(shader, () => {
+        renderPreview(preview);
     });
 
-    renderShaderInstance(instance);
+    renderPreview(preview);
 }
 
 function getShaderNameFromUrl(): string | null {
@@ -101,22 +131,26 @@ if (!shaderName || !SHADER_LIST.includes(shaderName)) {
     setShaderNameToUrl(shaderName, true);
 }
 
-const config = {
+const canvas = document.querySelector('canvas')!;
+const preview = createPreview(canvas, {
     shader: shaderName,
-    tiling: false,
-}
+});
 
 const gui = new GUI();
 
-const shaderDefinitionController = gui.add(config, 'shader', SHADER_LIST)
+const shaderDefinitionController = gui
+    .add(preview.props, 'shader', SHADER_LIST)
     .name('Shader')
-    .onChange(shaderName => {
+    .onChange((shaderName) => {
         setShaderNameToUrl(shaderName);
-        renderShader(shaderName);
+        loadShader(shaderName);
     });
 
-gui.add(config, 'tiling')
+gui.add(preview.props, 'tiling')
     .name('Tiling')
+    .onChange(() => {
+        renderPreview(preview);
+    });
 
 let shaderInstanceGui: GUI | undefined;
 
@@ -125,5 +159,8 @@ window.addEventListener('popstate', () => {
     shaderDefinitionController.setValue(shaderName);
 });
 
-renderShader(shaderName!);
+window.addEventListener('resize', () => {
+    renderPreview(preview);
+});
 
+loadShader(shaderName!);

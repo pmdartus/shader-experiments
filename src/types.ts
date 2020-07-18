@@ -35,9 +35,21 @@ export interface ShaderDefinition {
 
 export interface ShaderInstance {
     definition: ShaderDefinition;
-    gl: WebGL2RenderingContext;
+    preview: Preview;
     program: WebGLProgram;
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     props: { [name: string]: any };
+}
+
+export interface Preview {
+    canvas: HTMLCanvasElement;
+    gl: WebGL2RenderingContext;
+    shader: ShaderInstance | null;
+    props: {
+        shader: string | null;
+        tiling: boolean;
+        position: [number, number],
+        zoom: number,
+    }
 }
