@@ -2493,38 +2493,19 @@ function updateDisplays(controllerArray) {
 }
 var GUI$1 = GUI;
 
-const VERTEX_COUNT = 6;
-const VERTEX_POSITION = [
-    -1, -1,
-    -1, 1,
-    1, -1,
-    -1, 1,
-    1, 1,
-    1, -1,
-];
-const TEXTURE_COORDINATES = [
-    0, 0,
-    0, 1,
-    1, 0,
-    0, 1,
-    1, 1,
-    1, 0
-];
 const VERTEX_SHADER = `#version 300 es
  
-in vec4 a_position;
-in vec2 a_textcoord;
+in vec2 a_position;
+uniform mat3 u_matrix;
 
+in vec2 a_textcoord;
 out vec2 v_textcoord;
  
 void main() {
-  gl_Position = a_position;
-  v_textcoord = a_textcoord;
+    gl_Position = vec4((u_matrix * vec3(a_position, 1)).xy, 0, 1);
+
+    v_textcoord = a_textcoord;
 }`;
-function getWebGLContext() {
-    const canvas = document.querySelector('canvas');
-    return canvas.getContext('webgl2');
-}
 function createShader(gl, type, source) {
     const shader = gl.createShader(type);
     gl.shaderSource(shader, source);
@@ -2550,45 +2531,120 @@ function createProgram(gl, vertexShader, fragmentShader) {
     }
     return program;
 }
-function instantiateShader(definition) {
+function instantiateShader(preview, definition) {
+    const { gl } = preview;
     const props = Object.fromEntries(Object.entries(definition.props).map(([name, config]) => [
         name,
         config.default,
     ]));
-    const gl = getWebGLContext();
     const vertexShader = createShader(gl, gl.VERTEX_SHADER, VERTEX_SHADER);
     const fragmentShader = createShader(gl, gl.FRAGMENT_SHADER, definition.source);
     const program = createProgram(gl, vertexShader, fragmentShader);
     return {
         definition,
-        props,
-        gl,
+        preview,
         program,
+        props,
     };
 }
-function renderShaderInstance(shader) {
-    const { gl, program } = shader;
-    const positionAttributeLocation = gl.getAttribLocation(program, 'a_position');
-    const positionBuffer = gl.createBuffer();
-    gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
-    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(VERTEX_POSITION), gl.STATIC_DRAW);
-    const vao = gl.createVertexArray();
-    gl.bindVertexArray(vao);
-    gl.enableVertexAttribArray(positionAttributeLocation);
-    gl.vertexAttribPointer(positionAttributeLocation, 2, gl.FLOAT, false, 0, 0);
-    const textCoordAttributeLocation = gl.getAttribLocation(program, 'a_textcoord');
-    const textCoordBuffer = gl.createBuffer();
-    gl.bindBuffer(gl.ARRAY_BUFFER, textCoordBuffer);
-    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(TEXTURE_COORDINATES), gl.STATIC_DRAW);
-    gl.enableVertexAttribArray(textCoordAttributeLocation);
-    gl.vertexAttribPointer(textCoordAttributeLocation, 2, gl.FLOAT, false, 0, 0);
-    gl.viewport(0, 0, gl.canvas.width, gl.canvas.height);
-    gl.clearColor(0, 0, 0, 0);
-    gl.clear(gl.COLOR_BUFFER_BIT);
-    gl.useProgram(program);
-    gl.bindVertexArray(vao);
-    for (const [name, def] of Object.entries(shader.definition.props)) {
-        const value = shader.props[name];
+
+function projection(width, height) {
+    return [
+        2 / width, 0, 0,
+        0, -2 / height, 0,
+        -1, 1, 1,
+    ];
+}
+function translation(tx, ty) {
+    return [
+        1, 0, 0,
+        0, 1, 0,
+        tx, ty, 1,
+    ];
+}
+function scaling(sx, sy) {
+    return [
+        sx, 0, 0,
+        0, sy, 0,
+        0, 0, 1,
+    ];
+}
+function multiply(a, b) {
+    const a00 = a[0 * 3 + 0];
+    const a01 = a[0 * 3 + 1];
+    const a02 = a[0 * 3 + 2];
+    const a10 = a[1 * 3 + 0];
+    const a11 = a[1 * 3 + 1];
+    const a12 = a[1 * 3 + 2];
+    const a20 = a[2 * 3 + 0];
+    const a21 = a[2 * 3 + 1];
+    const a22 = a[2 * 3 + 2];
+    const b00 = b[0 * 3 + 0];
+    const b01 = b[0 * 3 + 1];
+    const b02 = b[0 * 3 + 2];
+    const b10 = b[1 * 3 + 0];
+    const b11 = b[1 * 3 + 1];
+    const b12 = b[1 * 3 + 2];
+    const b20 = b[2 * 3 + 0];
+    const b21 = b[2 * 3 + 1];
+    const b22 = b[2 * 3 + 2];
+    return [
+        b00 * a00 + b01 * a10 + b02 * a20,
+        b00 * a01 + b01 * a11 + b02 * a21,
+        b00 * a02 + b01 * a12 + b02 * a22,
+        b10 * a00 + b11 * a10 + b12 * a20,
+        b10 * a01 + b11 * a11 + b12 * a21,
+        b10 * a02 + b11 * a12 + b12 * a22,
+        b20 * a00 + b21 * a10 + b22 * a20,
+        b20 * a01 + b21 * a11 + b22 * a21,
+        b20 * a02 + b21 * a12 + b22 * a22,
+    ];
+}
+function translate(m, tx, ty) {
+    return multiply(m, translation(tx, ty));
+}
+function scale(m, sx, sy) {
+    return multiply(m, scaling(sx, sy));
+}
+
+const WORKFLOW_SIZE = 512;
+function resizeCanvas(canvas) {
+    const { clientWidth, clientHeight, width, height } = canvas;
+    const pixelRatio = window.devicePixelRatio;
+    const actualClientWidth = Math.floor(clientWidth * pixelRatio);
+    const actualClientHeight = Math.floor(clientHeight * pixelRatio);
+    if (actualClientWidth !== width || actualClientHeight !== height) {
+        canvas.width = actualClientWidth;
+        canvas.height = actualClientHeight;
+    }
+}
+function setupBox(gl, x = 0, y = 0) {
+    const halfSize = Math.floor(WORKFLOW_SIZE / 2);
+    const dx = x * WORKFLOW_SIZE;
+    const dy = y * WORKFLOW_SIZE;
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([
+        -halfSize + dx, -halfSize + dy,
+        -halfSize + dx, halfSize + dy,
+        halfSize + dx, -halfSize + dy,
+        -halfSize + dx, halfSize + dy,
+        halfSize + dx, halfSize + dy,
+        halfSize + dx, -halfSize + dy
+    ]), gl.STATIC_DRAW);
+}
+function setupTextureCoord(gl) {
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([
+        0, 0,
+        0, 1,
+        1, 0,
+        0, 1,
+        1, 1,
+        1, 0
+    ]), gl.STATIC_DRAW);
+}
+function setShaderUniforms(gl, shader) {
+    const { program, definition, props } = shader;
+    for (const [name, def] of Object.entries(definition.props)) {
+        const value = props[name];
         const uniformLocation = gl.getUniformLocation(program, `u_${name}`);
         switch (def.type) {
             case 'int':
@@ -2605,7 +2661,73 @@ function renderShaderInstance(shader) {
                 break;
         }
     }
-    gl.drawArrays(gl.TRIANGLES, 0, VERTEX_COUNT);
+}
+function getProjectionMatrix(preview) {
+    const { canvas, props } = preview;
+    let matrix = projection(canvas.clientWidth, canvas.clientHeight);
+    matrix = translate(matrix, props.position[0], props.position[1]);
+    matrix = scale(matrix, props.zoom, props.zoom);
+    return matrix;
+}
+function createPreview(canvas, props) {
+    const gl = canvas.getContext('webgl2');
+    resizeCanvas(canvas);
+    const { clientWidth, clientHeight } = canvas;
+    const x = clientWidth / 2;
+    const y = clientHeight / 2;
+    return {
+        canvas,
+        gl,
+        shader: null,
+        props: {
+            shader: null,
+            tiling: false,
+            position: [x, y],
+            zoom: 1,
+            ...props,
+        }
+    };
+}
+function renderPreview(preview) {
+    const { gl, canvas, shader, props } = preview;
+    resizeCanvas(canvas);
+    gl.viewport(0, 0, gl.canvas.width, gl.canvas.height);
+    gl.clearColor(0, 0, 0, 0);
+    gl.clear(gl.COLOR_BUFFER_BIT);
+    if (shader !== null) {
+        const { program } = shader;
+        const positionAttributeLocation = gl.getAttribLocation(program, 'a_position');
+        const textCoordAttributeLocation = gl.getAttribLocation(program, 'a_textcoord');
+        const matrixUniformLocation = gl.getUniformLocation(program, 'u_matrix');
+        const positionBuffer = gl.createBuffer();
+        const vao = gl.createVertexArray();
+        gl.bindVertexArray(vao);
+        gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
+        gl.enableVertexAttribArray(positionAttributeLocation);
+        gl.vertexAttribPointer(positionAttributeLocation, 2, gl.FLOAT, false, 0, 0);
+        const textCoordBuffer = gl.createBuffer();
+        gl.bindBuffer(gl.ARRAY_BUFFER, textCoordBuffer);
+        gl.enableVertexAttribArray(textCoordAttributeLocation);
+        gl.vertexAttribPointer(textCoordAttributeLocation, 2, gl.FLOAT, false, 0, 0);
+        gl.useProgram(program);
+        gl.bindVertexArray(vao);
+        const matrix = getProjectionMatrix(preview);
+        gl.uniformMatrix3fv(matrixUniformLocation, false, matrix);
+        gl.bindBuffer(gl.ARRAY_BUFFER, textCoordBuffer);
+        setupTextureCoord(gl);
+        setShaderUniforms(gl, shader);
+        const min = props.tiling ? -1 : 0;
+        const max = props.tiling ? 1 : 0;
+        for (let x = min; x <= max; x++) {
+            for (let y = min; y <= max; y++) {
+                gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
+                setupBox(gl, x, y);
+                const offset = 0;
+                const count = 6;
+                gl.drawArrays(gl.TRIANGLES, offset, count);
+            }
+        }
+    }
 }
 
 const SHADER_LIST = [
@@ -2638,13 +2760,33 @@ function updateShaderInstanceGui(shader, onPropChange) {
                 const float2Gui = shaderInstanceGui.addFolder(def.label);
                 float2Gui.open();
                 const propView = {
-                    get x() { return props[name][0]; },
-                    set x(val) { props[name][0] = val; },
-                    get y() { return props[name][1]; },
-                    set y(val) { props[name][1] = val; },
+                    get x() {
+                        return props[name][0];
+                    },
+                    set x(val) {
+                        props[name][0] = val;
+                    },
+                    get y() {
+                        return props[name][1];
+                    },
+                    set y(val) {
+                        props[name][1] = val;
+                    },
                 };
-                float2Gui.add(propView, 'x').name('X').min(0).max(1).step(0.01).onChange(onPropChange);
-                float2Gui.add(propView, 'y').name('Y').min(0).max(1).step(0.01).onChange(onPropChange);
+                float2Gui
+                    .add(propView, 'x')
+                    .name('X')
+                    .min(0)
+                    .max(1)
+                    .step(0.01)
+                    .onChange(onPropChange);
+                float2Gui
+                    .add(propView, 'y')
+                    .name('Y')
+                    .min(0)
+                    .max(1)
+                    .step(0.01)
+                    .onChange(onPropChange);
                 break;
             }
             default:
@@ -2653,19 +2795,20 @@ function updateShaderInstanceGui(shader, onPropChange) {
         }
     }
 }
-async function renderShader(shaderName) {
+async function loadShader(shaderName) {
     const [meta, source] = await Promise.all([
         fetch(`resources/shaders/${shaderName}.meta.json`).then((res) => res.json()),
         fetch(`resources/shaders/${shaderName}.glsl`).then((res) => res.text()),
     ]);
-    const instance = instantiateShader({
+    const shader = instantiateShader(preview, {
         ...meta,
         source,
     });
-    updateShaderInstanceGui(instance, () => {
-        renderShaderInstance(instance);
+    preview.shader = shader;
+    updateShaderInstanceGui(shader, () => {
+        renderPreview(preview);
     });
-    renderShaderInstance(instance);
+    renderPreview(preview);
 }
 function getShaderNameFromUrl() {
     const { searchParams } = new URL(String(window.location));
@@ -2688,22 +2831,29 @@ if (!shaderName || !SHADER_LIST.includes(shaderName)) {
     shaderName = SHADER_LIST[0];
     setShaderNameToUrl(shaderName, true);
 }
-const config = {
+const canvas = document.querySelector('canvas');
+const preview = createPreview(canvas, {
     shader: shaderName,
-    tiling: false,
-};
-const gui = new GUI$1();
-const shaderDefinitionController = gui.add(config, 'shader', SHADER_LIST)
-    .name('Shader')
-    .onChange(shaderName => {
-    setShaderNameToUrl(shaderName);
-    renderShader(shaderName);
 });
-gui.add(config, 'tiling')
-    .name('Tiling');
+const gui = new GUI$1();
+const shaderDefinitionController = gui
+    .add(preview.props, 'shader', SHADER_LIST)
+    .name('Shader')
+    .onChange((shaderName) => {
+    setShaderNameToUrl(shaderName);
+    loadShader(shaderName);
+});
+gui.add(preview.props, 'tiling')
+    .name('Tiling')
+    .onChange(() => {
+    renderPreview(preview);
+});
 let shaderInstanceGui;
 window.addEventListener('popstate', () => {
     const shaderName = getShaderNameFromUrl();
     shaderDefinitionController.setValue(shaderName);
 });
-renderShader(shaderName);
+window.addEventListener('resize', () => {
+    renderPreview(preview);
+});
+loadShader(shaderName);
