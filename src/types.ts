@@ -24,7 +24,12 @@ interface ShaderFloat2PropDefinition extends BaseShaderPropDefinition {
     default: [number, number];
 }
 
-export type ShaderPropDefinition = ShaderIntPropDefinition | ShaderFloatPropDefinition | ShaderFloat2PropDefinition;
+interface ShaderBooleanPropDefinition extends BaseShaderPropDefinition {
+    type: 'bool';
+    default: boolean;
+}
+
+export type ShaderPropDefinition = ShaderIntPropDefinition | ShaderFloatPropDefinition | ShaderFloat2PropDefinition | ShaderBooleanPropDefinition;
 
 export interface ShaderDefinition {
     name: string;

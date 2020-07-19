@@ -59,6 +59,13 @@ function updateShaderInstanceGui(
 
     for (const [name, def] of Object.entries(definition.props)) {
         switch (def.type) {
+            case 'bool':
+                shaderInstanceGui
+                    .add(props, name)
+                    .name(def.label)
+                    .onChange(onPropChange);
+                break;
+
             case 'int':
             case 'float':
                 shaderInstanceGui

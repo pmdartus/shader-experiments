@@ -50,6 +50,10 @@ function setShaderUniforms(gl: WebGLRenderingContext, shader: ShaderInstance): v
         const uniformLocation = gl.getUniformLocation(program, `u_${name}`);
 
         switch (def.type) {
+            case 'bool':
+                gl.uniform1i(uniformLocation, value);
+                break;
+
             case 'int':
                 gl.uniform1i(uniformLocation, value);
                 break;
