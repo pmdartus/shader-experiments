@@ -2,7 +2,7 @@ import { GUI } from 'dat.gui';
 
 import { ShaderInstance, ShaderPropDefinition } from './types';
 import { instantiateShader } from './shader';
-import { createPreview, renderPreview } from './preview';
+import { createPreview, renderPreview, resetCamera } from './preview';
 
 const SHADER_LIST = [
     'checker',
@@ -183,6 +183,23 @@ function handleMouseUp(evt: MouseEvent) {
     window.removeEventListener('mouseup', handleMouseUp);
 }
 
+function handleMouseWheel(evt: WheelEvent) {
+    evt.preventDefault();
+
+    // https://jsfiddle.net/greggman/mdpxw3n6/
+    // Multiple the wheel movement by the current zoom, this way it will zoom less when being 
+    // zoomed it.
+    const newZoom = preview.camera.zoom * Math.pow(2, evt.deltaY * -0.01);
+    preview.camera.zoom = Math.max(0.02, Math.min(100, newZoom));
+
+    renderPreview(preview);
+}
+
+function focusPreview() {
+    resetCamera(preview);
+    renderPreview(preview);
+}
+
 window.addEventListener('popstate', () => {
     const shaderName = getShaderNameFromUrl();
     shaderDefinitionController.setValue(shaderName);
@@ -193,5 +210,12 @@ window.addEventListener('resize', () => {
 });
 
 canvas.addEventListener('mousedown', handleMouseDown);
+canvas.addEventListener('wheel', handleMouseWheel);
+
+window.addEventListener('keypress', evt => {
+    if (evt.key === 'f') {
+        focusPreview();
+    } 
+})
 
 loadShader(shaderName!);

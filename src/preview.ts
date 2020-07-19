@@ -81,19 +81,12 @@ function getProjectionMatrix(preview: Preview): m3.M3 {
 
 export function createPreview(canvas: HTMLCanvasElement, props?: Partial<Preview['props']>): Preview {
     const gl = canvas.getContext('webgl2')!;
-
-    resizeCanvas(canvas);
-
-    const { clientWidth, clientHeight } = canvas;
-    const x = clientWidth / 2;
-    const y = clientHeight / 2;
-
-    return {
+    const preview: Preview = {
         canvas,
         gl,
         shader: null,
         camera: {
-            position: [x, y],
+            position: [0, 0],
             zoom: 1,
         },
         props: {
@@ -102,6 +95,21 @@ export function createPreview(canvas: HTMLCanvasElement, props?: Partial<Preview
             ...props,
         }
     }
+
+    resizeCanvas(canvas);
+    resetCamera(preview);
+
+    return preview;
+}
+
+export function resetCamera(preview: Preview): void {
+    const { camera, canvas: { clientWidth, clientHeight } } = preview;
+    
+    const x = clientWidth / 2;
+    const y = clientHeight / 2;
+
+    camera.position = [x, y];
+    camera.zoom = 1;
 }
 
 export function renderPreview(preview: Preview): void {
