@@ -2747,6 +2747,7 @@ const SHADER_LIST = [
     'gradient-linear-1',
     'gradient-linear-2',
     'gradient-linear-3',
+    'brick'
 ];
 let shaderName = getShaderNameFromUrl();
 // Check if the specified shader is a known shader otherwise reset it to the default value.

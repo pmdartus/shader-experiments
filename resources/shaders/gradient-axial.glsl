@@ -18,7 +18,7 @@ void main() {
     vec2 p2_norm = u_p2 - u_p1;
 
     // Project the normalize noralized pos vector on the normalize pos one.
-    float pos_projection = dot(pos_norm, p2_norm) / length(p2_norm);
+    float pos_projection = dot(p2_norm, pos_norm) / dot(p2_norm, p2_norm);
     vec3 color = vec3(pos_projection);
 
     // Add gizmo is necessary.
