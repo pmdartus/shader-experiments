@@ -2663,30 +2663,38 @@ function setShaderUniforms(gl, shader) {
     }
 }
 function getProjectionMatrix(preview) {
-    const { canvas, props } = preview;
+    const { canvas, camera } = preview;
     let matrix = projection(canvas.clientWidth, canvas.clientHeight);
-    matrix = translate(matrix, props.position[0], props.position[1]);
-    matrix = scale(matrix, props.zoom, props.zoom);
+    matrix = translate(matrix, camera.position[0], camera.position[1]);
+    matrix = scale(matrix, camera.zoom, camera.zoom);
     return matrix;
 }
 function createPreview(canvas, props) {
     const gl = canvas.getContext('webgl2');
-    resizeCanvas(canvas);
-    const { clientWidth, clientHeight } = canvas;
-    const x = clientWidth / 2;
-    const y = clientHeight / 2;
-    return {
+    const preview = {
         canvas,
         gl,
         shader: null,
+        camera: {
+            position: [0, 0],
+            zoom: 1,
+        },
         props: {
             shader: null,
             tiling: false,
-            position: [x, y],
-            zoom: 1,
             ...props,
         }
     };
+    resizeCanvas(canvas);
+    resetCamera(preview);
+    return preview;
+}
+function resetCamera(preview) {
+    const { camera, canvas: { clientWidth, clientHeight } } = preview;
+    const x = clientWidth / 2;
+    const y = clientHeight / 2;
+    camera.position = [x, y];
+    camera.zoom = 1;
 }
 function renderPreview(preview) {
     const { gl, canvas, shader, props } = preview;
@@ -2737,6 +2745,30 @@ const SHADER_LIST = [
     'gradient-linear-2',
     'gradient-linear-3',
 ];
+let shaderName = getShaderNameFromUrl();
+// Check if the specified shader is a known shader otherwise reset it to the default value.
+if (!shaderName || !SHADER_LIST.includes(shaderName)) {
+    shaderName = SHADER_LIST[0];
+    setShaderNameToUrl(shaderName, true);
+}
+const canvas = document.querySelector('canvas');
+const preview = createPreview(canvas, {
+    shader: shaderName,
+});
+const gui = new GUI$1();
+const shaderDefinitionController = gui
+    .add(preview.props, 'shader', SHADER_LIST)
+    .name('Shader')
+    .onChange((shaderName) => {
+    setShaderNameToUrl(shaderName);
+    loadShader(shaderName);
+});
+gui.add(preview.props, 'tiling')
+    .name('Tiling')
+    .onChange(() => {
+    renderPreview(preview);
+});
+let shaderInstanceGui;
 function updateShaderInstanceGui(shader, onPropChange) {
     const { definition, props } = shader;
     if (shaderInstanceGui) {
@@ -2825,35 +2857,50 @@ function setShaderNameToUrl(shaderName, replace = false) {
         history.pushState(data, title, url);
     }
 }
-let shaderName = getShaderNameFromUrl();
-// Check if the specified shader is a known shader otherwise reset it to the default value.
-if (!shaderName || !SHADER_LIST.includes(shaderName)) {
-    shaderName = SHADER_LIST[0];
-    setShaderNameToUrl(shaderName, true);
-}
-const canvas = document.querySelector('canvas');
-const preview = createPreview(canvas, {
-    shader: shaderName,
-});
-const gui = new GUI$1();
-const shaderDefinitionController = gui
-    .add(preview.props, 'shader', SHADER_LIST)
-    .name('Shader')
-    .onChange((shaderName) => {
-    setShaderNameToUrl(shaderName);
-    loadShader(shaderName);
-});
-gui.add(preview.props, 'tiling')
-    .name('Tiling')
-    .onChange(() => {
+function handleMouseDown(evt) {
+    evt.preventDefault();
+    window.addEventListener('mousemove', handleMouseMove);
+    window.addEventListener('mouseup', handleMouseUp);
+    preview.camera.position[0] += evt.movementX;
+    preview.camera.position[1] += evt.movementY;
     renderPreview(preview);
-});
-let shaderInstanceGui;
+}
+function handleMouseMove(evt) {
+    evt.preventDefault();
+    preview.camera.position[0] += evt.movementX;
+    preview.camera.position[1] += evt.movementY;
+    renderPreview(preview);
+}
+function handleMouseUp(evt) {
+    evt.preventDefault();
+    window.removeEventListener('mousemove', handleMouseMove);
+    window.removeEventListener('mouseup', handleMouseUp);
+}
+function handleMouseWheel(evt) {
+    evt.preventDefault();
+    // https://jsfiddle.net/greggman/mdpxw3n6/
+    // Multiple the wheel movement by the current zoom, this way it will zoom less when being 
+    // zoomed it.
+    const newZoom = preview.camera.zoom * Math.pow(2, evt.deltaY * -0.01);
+    preview.camera.zoom = Math.max(0.02, Math.min(100, newZoom));
+    renderPreview(preview);
+}
+function focusPreview() {
+    resetCamera(preview);
+    renderPreview(preview);
+}
 window.addEventListener('popstate', () => {
     const shaderName = getShaderNameFromUrl();
     shaderDefinitionController.setValue(shaderName);
 });
 window.addEventListener('resize', () => {
     renderPreview(preview);
+});
+canvas.addEventListener('mousedown', handleMouseDown);
+canvas.addEventListener('wheel', handleMouseWheel);
+window.addEventListener('keypress', evt => {
+    if (evt.key === 'f') {
+        focusPreview();
+    }
 });
 loadShader(shaderName);
