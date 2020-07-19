@@ -11,6 +11,11 @@
             "label": "Point 2",
             "type": "float2",
             "default": [1, 1]
+        },
+        "gizmo": {
+            "label": "Shadow Gizmo",
+            "type": "bool",
+            "default": false
         }
     }
 }

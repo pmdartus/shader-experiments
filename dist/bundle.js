@@ -2647,6 +2647,9 @@ function setShaderUniforms(gl, shader) {
         const value = props[name];
         const uniformLocation = gl.getUniformLocation(program, `u_${name}`);
         switch (def.type) {
+            case 'bool':
+                gl.uniform1i(uniformLocation, value);
+                break;
             case 'int':
                 gl.uniform1i(uniformLocation, value);
                 break;
@@ -2778,6 +2781,12 @@ function updateShaderInstanceGui(shader, onPropChange) {
     shaderInstanceGui.open();
     for (const [name, def] of Object.entries(definition.props)) {
         switch (def.type) {
+            case 'bool':
+                shaderInstanceGui
+                    .add(props, name)
+                    .name(def.label)
+                    .onChange(onPropChange);
+                break;
             case 'int':
             case 'float':
                 shaderInstanceGui
