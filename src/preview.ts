@@ -70,11 +70,11 @@ function setShaderUniforms(gl: WebGLRenderingContext, shader: ShaderInstance): v
 }
 
 function getProjectionMatrix(preview: Preview): m3.M3 {
-    const { canvas, props } = preview;
+    const { canvas, camera } = preview;
 
     let matrix = m3.projection(canvas.clientWidth, canvas.clientHeight);
-    matrix = m3.translate(matrix, props.position[0], props.position[1]);
-    matrix = m3.scale(matrix, props.zoom, props.zoom);
+    matrix = m3.translate(matrix, camera.position[0], camera.position[1]);
+    matrix = m3.scale(matrix, camera.zoom, camera.zoom);
 
     return matrix;
 }
@@ -92,11 +92,13 @@ export function createPreview(canvas: HTMLCanvasElement, props?: Partial<Preview
         canvas,
         gl,
         shader: null,
+        camera: {
+            position: [x, y],
+            zoom: 1,
+        },
         props: {
             shader: null,
             tiling: false,
-            position: [x, y],
-            zoom: 1,
             ...props,
         }
     }

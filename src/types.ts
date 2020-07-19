@@ -46,10 +46,12 @@ export interface Preview {
     canvas: HTMLCanvasElement;
     gl: WebGL2RenderingContext;
     shader: ShaderInstance | null;
+    camera: {
+        position: [number, number],
+        zoom: number,
+    }
     props: {
         shader: string | null;
         tiling: boolean;
-        position: [number, number],
-        zoom: number,
     }
 }

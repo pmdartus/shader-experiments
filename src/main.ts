@@ -12,6 +12,38 @@ const SHADER_LIST = [
     'gradient-linear-3',
 ];
 
+let shaderName = getShaderNameFromUrl();
+
+// Check if the specified shader is a known shader otherwise reset it to the default value.
+if (!shaderName || !SHADER_LIST.includes(shaderName)) {
+    shaderName = SHADER_LIST[0];
+    setShaderNameToUrl(shaderName, true);
+}
+
+const canvas = document.querySelector('canvas')!;
+const preview = createPreview(canvas, {
+    shader: shaderName,
+});
+
+const gui = new GUI();
+
+const shaderDefinitionController = gui
+    .add(preview.props, 'shader', SHADER_LIST)
+    .name('Shader')
+    .onChange((shaderName) => {
+        setShaderNameToUrl(shaderName);
+        loadShader(shaderName);
+    });
+
+gui.add(preview.props, 'tiling')
+    .name('Tiling')
+    .onChange(() => {
+        renderPreview(preview);
+    });
+
+let shaderInstanceGui: GUI | undefined;
+
+
 function updateShaderInstanceGui(
     shader: ShaderInstance,
     onPropChange: () => void,
@@ -123,36 +155,33 @@ function setShaderNameToUrl(shaderName: string, replace = false): void {
     }
 }
 
-let shaderName = getShaderNameFromUrl();
+function handleMouseDown(evt: MouseEvent) {
+    evt.preventDefault();
 
-// Check if the specified shader is a known shader otherwise reset it to the default value.
-if (!shaderName || !SHADER_LIST.includes(shaderName)) {
-    shaderName = SHADER_LIST[0];
-    setShaderNameToUrl(shaderName, true);
+    window.addEventListener('mousemove', handleMouseMove);
+    window.addEventListener('mouseup', handleMouseUp);
+
+    preview.camera.position[0] += evt.movementX;
+    preview.camera.position[1] += evt.movementY;
+
+    renderPreview(preview);
 }
 
-const canvas = document.querySelector('canvas')!;
-const preview = createPreview(canvas, {
-    shader: shaderName,
-});
+function handleMouseMove(evt: MouseEvent) {
+    evt.preventDefault();
 
-const gui = new GUI();
+    preview.camera.position[0] += evt.movementX;
+    preview.camera.position[1] += evt.movementY;
 
-const shaderDefinitionController = gui
-    .add(preview.props, 'shader', SHADER_LIST)
-    .name('Shader')
-    .onChange((shaderName) => {
-        setShaderNameToUrl(shaderName);
-        loadShader(shaderName);
-    });
+    renderPreview(preview);
+}
 
-gui.add(preview.props, 'tiling')
-    .name('Tiling')
-    .onChange(() => {
-        renderPreview(preview);
-    });
+function handleMouseUp(evt: MouseEvent) {
+    evt.preventDefault();
 
-let shaderInstanceGui: GUI | undefined;
+    window.removeEventListener('mousemove', handleMouseMove);
+    window.removeEventListener('mouseup', handleMouseUp);
+}
 
 window.addEventListener('popstate', () => {
     const shaderName = getShaderNameFromUrl();
@@ -162,5 +191,7 @@ window.addEventListener('popstate', () => {
 window.addEventListener('resize', () => {
     renderPreview(preview);
 });
+
+canvas.addEventListener('mousedown', handleMouseDown);
 
 loadShader(shaderName!);
