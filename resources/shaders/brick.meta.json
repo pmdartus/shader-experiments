@@ -1,0 +1,30 @@
+{
+    "name": "brick",
+    "label": "Brick",
+    "props": {
+        "tiling": {
+            "label": "Tiling",
+            "type": "int",
+            "default": 2,
+            "min": 1,
+            "max": 16,
+            "step": 1
+        },
+        "edgesmoothness": {
+            "label": "Edge Smoothness",
+            "type": "float",
+            "default": 0,
+            "min": 0,
+            "max": 1,
+            "step": 0.01
+        },
+        "intersectionwidth": {
+            "label": "Intersection Width",
+            "type": "float",
+            "default": 0.1,
+            "min": 0,
+            "max": 1,
+            "step": 0.01
+        }
+    }
+}
