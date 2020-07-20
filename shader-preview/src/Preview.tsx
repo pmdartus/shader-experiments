@@ -52,6 +52,16 @@ const DISPLAY_CHANNELS: Record<
   },
 };
 
+// prettier-ignore
+const POSITION_VERTEX = new Float32Array([
+  -1, -1,
+  1, -1,
+  -1, 1,
+  -1, 1,
+  1, -1,
+  1, 1
+]);
+
 const VERTEX_SHADER_SRC = `#version 300 es
 
 // an attribute is an input (in) to a vertex shader.
@@ -67,17 +77,7 @@ out vec2 v_texCoord;
 
 // all shaders have a main function
 void main() {
-
-  // convert the position from pixels to 0.0 to 1.0
-  vec2 zeroToOne = a_position / u_resolution;
-
-  // convert from 0->1 to 0->2
-  vec2 zeroToTwo = zeroToOne * 2.0;
-
-  // convert from 0->2 to -1->+1 (clipspace)
-  vec2 clipSpace = zeroToTwo - 1.0;
-
-  gl_Position = vec4(clipSpace * vec2(1, -1), 0, 1);
+  gl_Position = vec4(a_position, 0, 1);
 
   // pass the texCoord to the fragment shader
   // The GPU will interpolate this value between points.
@@ -91,13 +91,20 @@ precision highp float;
 
 uniform sampler2D u_image;
 uniform mat3 u_channelsFilter;
+uniform bool u_tiling;
 
 in vec2 v_texCoord;
 
 out vec4 outColor;
 
 void main() {
-  outColor = texture(u_image, v_texCoord) * mat4(u_channelsFilter);
+  vec2 pos = v_texCoord * vec2(1.2);
+
+  if (!u_tiling && any(greaterThan(abs(pos), vec2(1.0)))) {
+    discard;
+  }
+
+  outColor = texture(u_image, pos) * mat4(u_channelsFilter);
 }
 `;
 
@@ -127,38 +134,11 @@ function loadImageData(url: string): Promise<ImageData> {
   });
 }
 
-function setRectangle(
-  gl: WebGL2RenderingContext,
-  x: number,
-  y: number,
-  width: number,
-  height: number
-): void {
-  const x1 = x;
-  const x2 = x + width;
-  const y1 = y;
-  const y2 = y + height;
-
-  // prettier-ignore
-  gl.bufferData(
-    gl.ARRAY_BUFFER,
-    new Float32Array([
-      x1, y1, 
-      x2, y1, 
-      x1, y2, 
-      x1, y2, 
-      x2, y1, 
-      x2, y2
-    ]),
-    gl.STATIC_DRAW
-  );
-}
-
 function drawPreview(
   canvas: HTMLCanvasElement,
-  config: { imageData: ImageData; channels: ColorChannel }
+  config: { imageData: ImageData; channels: ColorChannel, tiling: boolean }
 ): void {
-  const { imageData, channels } = config;
+  const { imageData, channels, tiling } = config;
   const { clientWidth, clientHeight } = canvas;
 
   if (clientWidth !== canvas.width || clientHeight !== canvas.height) {
@@ -192,6 +172,7 @@ function drawPreview(
     program,
     "u_channelsFilter"
   );
+  const tilingUniformLocation = gl.getUniformLocation(program, 'u_tiling');
 
   const vao = gl.createVertexArray();
   gl.bindVertexArray(vao);
@@ -224,8 +205,6 @@ function drawPreview(
   gl.activeTexture(gl.TEXTURE0 + 0);
   gl.bindTexture(gl.TEXTURE_2D, texture);
 
-  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
-  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
 
@@ -250,9 +229,10 @@ function drawPreview(
   gl.uniform2f(resolutionUniformLocation, canvas.width, canvas.height);
   gl.uniform1i(imageUniformLocation, 0);
   gl.uniformMatrix3fv(channelsFilerLocation, false, DISPLAY_CHANNELS[channels].filter);
+  gl.uniform1i(tilingUniformLocation, tiling ? 1 : 0);
 
   gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
-  setRectangle(gl, 0, 0, imageData.width, imageData.height);
+  gl.bufferData(gl.ARRAY_BUFFER, POSITION_VERTEX, gl.STATIC_DRAW);
 
   gl.drawArrays(gl.TRIANGLES, 0, 6);
 }
@@ -260,6 +240,7 @@ function drawPreview(
 function Preview(props: { url: string }) {
   const [imageData, setImageData] = useState<null | ImageData>(null);
   const [channels, setChannels] = useState<ColorChannel>(ColorChannel.RGB);
+  const [tiling, setTiling] = useState<boolean>(false);
 
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
 
@@ -274,9 +255,10 @@ function Preview(props: { url: string }) {
       drawPreview(canvasRef.current, {
         imageData,
         channels,
+        tiling
       });
     }
-  }, [imageData, channels]);
+  }, [imageData, channels, tiling]);
 
   return (
     <div className="preview">
@@ -289,6 +271,12 @@ function Preview(props: { url: string }) {
           </option>
         ))}
       </select>
+      
+      <label htmlFor="tiling">Tiling</label>
+      <input type="checkbox" id="tiling" name="Tiling" checked={tiling} onChange={(e) => setTiling(e.target.checked)}/>
+
+      <hr/>
+
       <canvas ref={canvasRef}></canvas>
     </div>
   );
