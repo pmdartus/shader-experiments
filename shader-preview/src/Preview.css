@@ -1,0 +1,9 @@
+.preview {
+  width: 512px;
+  height: 512px;
+}
+
+.preview canvas {
+  width: 100%;
+  height: 100%;
+}
