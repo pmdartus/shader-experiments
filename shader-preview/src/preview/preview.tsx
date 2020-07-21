@@ -26,23 +26,17 @@ const POSITION_VERTEX = new Float32Array([
 
 const VERTEX_SHADER_SRC = `#version 300 es
 
-// an attribute is an input (in) to a vertex shader.
-// It will receive data from a buffer
 in vec2 a_position;
 in vec2 a_texCoord;
 
-// Used to pass in the resolution of the canvas
 uniform vec2 u_resolution;
 
-// Used to pass the texture coordinates to the fragment shader
 out vec2 v_texCoord;
 
 // all shaders have a main function
 void main() {
   gl_Position = vec4(a_position, 0, 1);
 
-  // pass the texCoord to the fragment shader
-  // The GPU will interpolate this value between points.
   v_texCoord = a_texCoord;
 }
 `;
@@ -242,7 +236,7 @@ function Preview(props: { url: string }) {
   const handleMouseMove = (evt: React.MouseEvent) => {
     const { clientX, clientY } = evt;
     setMousePosition([clientX, clientY]);
-  }
+  };
 
   return (
     <div className="preview">
@@ -268,15 +262,17 @@ function Preview(props: { url: string }) {
 
       <Divider />
 
-      <canvas ref={canvasRef} onMouseMove={handleMouseMove} width="512" height="512"></canvas>
+      <canvas
+        ref={canvasRef}
+        onMouseMove={handleMouseMove}
+        width="512"
+        height="512"
+      ></canvas>
 
       <Divider />
 
       {isInfoVisible && (
-        <InformationPanel
-          position={mousePosition}
-          imageData={imageData}
-        />
+        <InformationPanel position={mousePosition} imageData={imageData} />
       )}
     </div>
   );

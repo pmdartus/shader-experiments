@@ -99,9 +99,9 @@ export function ZoomControl(props: {
 }
 
 export function SelectableActionButton(props: {
-  isSelected: boolean,
-  onPress: () => void,
-  children: React.ReactNode
+  isSelected: boolean;
+  onPress: () => void;
+  children: React.ReactNode;
 }) {
   return (
     <ActionButton
@@ -110,5 +110,5 @@ export function SelectableActionButton(props: {
     >
       {props.children}
     </ActionButton>
-  )
+  );
 }
