@@ -2,18 +2,17 @@ import React, { useRef, useState, useEffect } from "react";
 
 import TilingIcon from "@spectrum-icons/workflow/ClassicGridView";
 import InfoIcon from "@spectrum-icons/workflow/Info";
-import {
-  ActionButton,
-  Divider,
-} from "@adobe/react-spectrum";
-
-import "./preview.css";
+import { Divider } from "@adobe/react-spectrum";
 
 import { createShader, createProgram } from "../webgl/shader";
 
-import { InformationPanel } from './information-panel';
-import { ColorChannelControl, ZoomControl } from './controls';
-import { ColorChannel, DISPLAY_CHANNELS } from './shared';
+import { InformationPanel } from "./information-panel";
+import {
+  ColorChannelPicker,
+  ZoomControl,
+  SelectableActionButton,
+} from "./controls";
+import { ColorChannel, DISPLAY_CHANNELS } from "./shared";
 
 // prettier-ignore
 const POSITION_VERTEX = new Float32Array([
@@ -218,9 +217,7 @@ function Preview(props: { url: string }) {
   const [tiling, setTiling] = useState<boolean>(false);
   const [zoom, setZoom] = useState<number>(1);
 
-  const [isInformationPanelRendered, setIsInformationPanelRendered] = useState<
-    boolean
-  >(false);
+  const [isInfoVisible, setIsInfoVisible] = useState<boolean>(false);
 
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
 
@@ -243,36 +240,34 @@ function Preview(props: { url: string }) {
 
   return (
     <div className="preview">
-      <ColorChannelControl
+      <ColorChannelPicker
         value={channels}
         onChange={(value) => setChannels(value)}
       />
 
-      <ActionButton
+      <SelectableActionButton
+        isSelected={tiling}
         onPress={() => setTiling(!tiling)}
-        UNSAFE_className={tiling ? "is-selected" : ""}
       >
         <TilingIcon />
-      </ActionButton>
+      </SelectableActionButton>
 
-      <ActionButton
-        onPress={() =>
-          setIsInformationPanelRendered(!isInformationPanelRendered)
-        }
-        UNSAFE_className={isInformationPanelRendered ? "is-selected" : ""}
+      <SelectableActionButton
+        isSelected={isInfoVisible}
+        onPress={() => setIsInfoVisible(!isInfoVisible)}
       >
         <InfoIcon />
-      </ActionButton>
+      </SelectableActionButton>
 
       <ZoomControl value={zoom} onChange={(value) => setZoom(value)} />
 
-      <Divider/>
+      <Divider />
 
-      <canvas ref={canvasRef}></canvas>
+      <canvas ref={canvasRef} width="512" height="512"></canvas>
 
-      <Divider/>
+      <Divider />
 
-      {isInformationPanelRendered && (
+      {isInfoVisible && (
         <InformationPanel
           position={[256, 256]}
           size={imageData ? [imageData.width, imageData.height] : [0, 0]}

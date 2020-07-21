@@ -12,7 +12,7 @@ import LayersIcon from "@spectrum-icons/workflow/Layers";
 
 import { ColorChannel, DISPLAY_CHANNELS, ZOOM_STEP } from "./shared";
 
-export function ColorChannelControl(props: {
+export function ColorChannelPicker(props: {
   value: ColorChannel;
   onChange: (value: ColorChannel) => void;
 }) {
@@ -96,4 +96,19 @@ export function ZoomControl(props: {
       </ActionButton>
     </>
   );
+}
+
+export function SelectableActionButton(props: {
+  isSelected: boolean,
+  onPress: () => void,
+  children: React.ReactNode
+}) {
+  return (
+    <ActionButton
+      {...props}
+      UNSAFE_className={props.isSelected ? "is-selected" : ""}
+    >
+      {props.children}
+    </ActionButton>
+  )
 }
