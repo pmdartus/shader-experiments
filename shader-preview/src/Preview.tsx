@@ -2,6 +2,7 @@ import React, { useRef, useState, useEffect } from "react";
 
 import LayersIcon from "@spectrum-icons/workflow/Layers";
 import TilingIcon from "@spectrum-icons/workflow/ClassicGridView";
+import InfoIcon from "@spectrum-icons/workflow/Info";
 import {
   MenuTrigger,
   Menu,
@@ -9,6 +10,10 @@ import {
   ActionButton,
   Text,
   TextField,
+  Heading,
+  Flex,
+  View,
+  Divider,
 } from "@adobe/react-spectrum";
 
 import { createShader, createProgram } from "./webgl/shader";
@@ -268,6 +273,10 @@ function Preview(props: { url: string }) {
   const [tiling, setTiling] = useState<boolean>(false);
   const [zoom, setZoom] = useState<number>(1);
 
+  const [isInformationPanelRendered, setIsInformationPanelRendered] = useState<
+    boolean
+  >(false);
+
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
 
   useEffect(() => {
@@ -301,11 +310,30 @@ function Preview(props: { url: string }) {
         <TilingIcon />
       </ActionButton>
 
+      <ActionButton
+        onPress={() =>
+          setIsInformationPanelRendered(!isInformationPanelRendered)
+        }
+        UNSAFE_className={isInformationPanelRendered ? "is-selected" : ""}
+      >
+        <InfoIcon />
+      </ActionButton>
+
       <ZoomControl value={zoom} onChange={(value) => setZoom(value)} />
 
-      <hr />
+      <Divider/>
 
       <canvas ref={canvasRef}></canvas>
+
+      <Divider/>
+
+      {isInformationPanelRendered && (
+        <InformationPanel
+          position={[256, 256]}
+          size={imageData ? [imageData.width, imageData.height] : [0, 0]}
+          color={[255, 255, 255, 255]}
+        />
+      )}
     </div>
   );
 }
@@ -373,14 +401,81 @@ function ZoomControl(props: {
 
   return (
     <>
-      <ActionButton aria-label="Decrease zoom" isQuiet onPress={handleZoomDecreaseClick}>
+      <ActionButton
+        aria-label="Decrease zoom"
+        isQuiet
+        onPress={handleZoomDecreaseClick}
+      >
         -
       </ActionButton>
-      <TextField aria-label="Zoom factor" value={(value * 100).toFixed(2)} onChange={handleZoomValueChange} />
-      <ActionButton aria-label="Increase zoom" isQuiet onPress={handleZoomIncreaseClick}>
+      <TextField
+        aria-label="Zoom factor"
+        value={(value * 100).toFixed(2)}
+        onChange={handleZoomValueChange}
+      />
+      <ActionButton
+        aria-label="Increase zoom"
+        isQuiet
+        onPress={handleZoomIncreaseClick}
+      >
         +
       </ActionButton>
     </>
+  );
+}
+
+function InformationPanel(props: {
+  position: [number, number];
+  size: [number, number];
+  color: [number, number, number, number];
+}) {
+  const { position, size, color } = props;
+
+  const info = {
+    rgb: {
+      r: `R: ${color[0]}`,
+      g: `G: ${color[1]}`,
+      b: `B: ${color[2]}`,
+      a: `A: ${color[3]}`,
+    },
+    hsv: {
+      h: `H: ${color[0]}`,
+      s: `S: ${color[1]}`,
+      v: `V: ${color[2]}`,
+    },
+    position: {
+      x: `X: ${position[0]} / ${(position[0] / size[0]).toFixed(2)}`,
+      y: `X: ${position[1]} / ${(position[1] / size[1]).toFixed(2)}`,
+    },
+  };
+
+  const informationSection = Object.entries(info).map(([name, col]) => (
+    <Flex key={name} direction="column">
+      {Object.entries(col).map(([name, row]) => (
+        <View key={name}>{row}</View>
+      ))}
+    </Flex>
+  ));
+
+  return (
+    <div>
+      <Heading>Information</Heading>
+      <Flex direction="row" gap="size-200">
+        <View
+          width="size-200"
+          height="size-200"
+          UNSAFE_style={{
+            backgroundColor: `rgba(${color.join(", ")})`,
+          }}
+        />
+
+        <Divider orientation="vertical" />
+
+        <Flex direction="row" gap="size-200">
+          {informationSection}
+        </Flex>
+      </Flex>
+    </div>
   );
 }
 
