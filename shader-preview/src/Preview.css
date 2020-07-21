@@ -7,13 +7,3 @@
   width: 100%;
   height: 100%;
 }
-
-/*
- Make number spinner disapear.
- https://css-tricks.com/snippets/css/turn-off-number-input-spinners/
-*/
-.preview .zoom-control input[type="number"]::-webkit-inner-spin-button,
-.preview .zoom-control input[type="number"]::-webkit-outer-spin-button {
-  -webkit-appearance: none;
-  margin: 0;
-}

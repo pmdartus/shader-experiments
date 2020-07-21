@@ -1,5 +1,16 @@
 import React, { useRef, useState, useEffect } from "react";
 
+import LayersIcon from "@spectrum-icons/workflow/Layers";
+import TilingIcon from "@spectrum-icons/workflow/ClassicGridView";
+import {
+  MenuTrigger,
+  Menu,
+  Item,
+  ActionButton,
+  Text,
+  TextField,
+} from "@adobe/react-spectrum";
+
 import { createShader, createProgram } from "./webgl/shader";
 import "./Preview.css";
 
@@ -276,21 +287,19 @@ function Preview(props: { url: string }) {
     }
   }, [imageData, channels, tiling, zoom]);
 
-  console.log(zoom);
-
   return (
     <div className="preview">
-      <ColorChannelControl value={channels} onChange={(value) => setChannels(value)}/>
-
-      <label htmlFor="tiling">Tiling</label>
-      <input
-        type="checkbox"
-        id="tiling"
-        name="tiling"
-        title={tiling ? "Disable tiling" : "Enable tiling"}
-        checked={tiling}
-        onChange={(e) => setTiling(e.target.checked)}
+      <ColorChannelControl
+        value={channels}
+        onChange={(value) => setChannels(value)}
       />
+
+      <ActionButton
+        onPress={() => setTiling(!tiling)}
+        UNSAFE_className={tiling ? "is-selected" : ""}
+      >
+        <TilingIcon />
+      </ActionButton>
 
       <ZoomControl value={zoom} onChange={(value) => setZoom(value)} />
 
@@ -307,17 +316,36 @@ function ColorChannelControl(props: {
 }) {
   const { value, onChange } = props;
 
+  const selectedKeys = [value];
+  const items = Object.entries(DISPLAY_CHANNELS).map(([name, value]) => {
+    return { name, ...value };
+  });
+
+  const handleSelectionChange = (selection: string | Set<string | number>) => {
+    if (typeof selection === "string") {
+      return;
+    }
+
+    const selected = Array.from(selection)[0];
+    onChange(selected as ColorChannel);
+  };
+
   return (
-    <select
-      value={value}
-      onChange={(e) => onChange(e.target.value as ColorChannel)}
-    >
-      {Object.entries(DISPLAY_CHANNELS).map(([name, { label }]) => (
-        <option key={name} value={name}>
-          {label}
-        </option>
-      ))}
-    </select>
+    <MenuTrigger>
+      <ActionButton aria-label="Select color channel">
+        <LayersIcon />
+        <Text>Channels</Text>
+      </ActionButton>
+
+      <Menu
+        items={items}
+        selectionMode="single"
+        selectedKeys={selectedKeys}
+        onSelectionChange={handleSelectionChange}
+      >
+        {(item) => <Item key={item.name}>{item.label}</Item>}
+      </Menu>
+    </MenuTrigger>
   );
 }
 
@@ -335,28 +363,24 @@ function ZoomControl(props: {
     onChange(value * (1 + ZOOM_STEP));
   };
 
-  const handleZoomValueChange = (newValue: number) => {
-    onChange(newValue / 100);
+  const handleZoomValueChange = (newValue: string) => {
+    if (!newValue.match(/\d+\.\d?/)) {
+      return;
+    }
+
+    onChange(parseFloat(newValue) / 100);
   };
 
   return (
-    <div className="zoom-control">
-      <button title="Decrease zoom" onClick={handleZoomDecreaseClick}>
+    <>
+      <ActionButton aria-label="Decrease zoom" isQuiet onPress={handleZoomDecreaseClick}>
         -
-      </button>
-
-      <input
-        type="number"
-        name="zoom"
-        id="zoom"
-        value={(value * 100).toFixed(2)}
-        onChange={(e) => handleZoomValueChange(e.target.valueAsNumber)}
-      />
-
-      <button title="Increase zoom" onClick={handleZoomIncreaseClick}>
+      </ActionButton>
+      <TextField aria-label="Zoom factor" value={(value * 100).toFixed(2)} onChange={handleZoomValueChange} />
+      <ActionButton aria-label="Increase zoom" isQuiet onPress={handleZoomIncreaseClick}>
         +
-      </button>
-    </div>
+      </ActionButton>
+    </>
   );
 }
 
