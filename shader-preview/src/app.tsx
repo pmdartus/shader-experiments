@@ -1,7 +1,7 @@
 import React from 'react';
 import {Provider, defaultTheme} from '@adobe/react-spectrum';
 
-import Preview from './Preview';
+import Preview from './preview';
 
 export default function App() {
   return (

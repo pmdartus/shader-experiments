@@ -1,74 +1,19 @@
 import React, { useRef, useState, useEffect } from "react";
 
-import LayersIcon from "@spectrum-icons/workflow/Layers";
 import TilingIcon from "@spectrum-icons/workflow/ClassicGridView";
 import InfoIcon from "@spectrum-icons/workflow/Info";
 import {
-  MenuTrigger,
-  Menu,
-  Item,
   ActionButton,
-  Text,
-  TextField,
-  Heading,
-  Flex,
-  View,
   Divider,
 } from "@adobe/react-spectrum";
 
-import { createShader, createProgram } from "./webgl/shader";
-import "./Preview.css";
+import "./preview.css";
 
-enum ColorChannel {
-  RGB = "RGB",
-  R = "R",
-  G = "G",
-  B = "B",
-}
+import { createShader, createProgram } from "../webgl/shader";
 
-const ZOOM_STEP = 0.2;
-
-const DISPLAY_CHANNELS: Record<
-  ColorChannel,
-  { label: string; filter: number[] }
-> = {
-  RGB: {
-    label: "RBG",
-    // prettier-ignore
-    filter: [
-      1, 0, 0,
-      0, 1, 0,
-      0, 0, 1
-    ]
-  },
-  R: {
-    label: "Red",
-    // prettier-ignore
-    filter: [
-      1, 0, 0,
-      1, 0, 0,
-      1, 0, 0,
-    ]
-  },
-  G: {
-    label: "Green",
-    // prettier-ignore
-    filter: [
-      0, 1, 0,
-      0, 1, 0,
-      0, 1, 0
-    ]
-  },
-  B: {
-    label: "Blue",
-    // prettier-ignore
-    filter: [
-      0, 0, 1,
-      0, 0, 1,
-      0, 0, 1
-    ]
-  },
-};
+import { InformationPanel } from './information-panel';
+import { ColorChannelControl, ZoomControl } from './controls';
+import { ColorChannel, DISPLAY_CHANNELS } from './shared';
 
 // prettier-ignore
 const POSITION_VERTEX = new Float32Array([
@@ -334,147 +279,6 @@ function Preview(props: { url: string }) {
           color={[255, 255, 255, 255]}
         />
       )}
-    </div>
-  );
-}
-
-function ColorChannelControl(props: {
-  value: ColorChannel;
-  onChange: (value: ColorChannel) => void;
-}) {
-  const { value, onChange } = props;
-
-  const selectedKeys = [value];
-  const items = Object.entries(DISPLAY_CHANNELS).map(([name, value]) => {
-    return { name, ...value };
-  });
-
-  const handleSelectionChange = (selection: string | Set<string | number>) => {
-    if (typeof selection === "string") {
-      return;
-    }
-
-    const selected = Array.from(selection)[0];
-    onChange(selected as ColorChannel);
-  };
-
-  return (
-    <MenuTrigger>
-      <ActionButton aria-label="Select color channel">
-        <LayersIcon />
-        <Text>Channels</Text>
-      </ActionButton>
-
-      <Menu
-        items={items}
-        selectionMode="single"
-        selectedKeys={selectedKeys}
-        onSelectionChange={handleSelectionChange}
-      >
-        {(item) => <Item key={item.name}>{item.label}</Item>}
-      </Menu>
-    </MenuTrigger>
-  );
-}
-
-function ZoomControl(props: {
-  value: number;
-  onChange: (value: number) => void;
-}) {
-  const { value, onChange } = props;
-
-  const handleZoomDecreaseClick = () => {
-    onChange(value / (1 + ZOOM_STEP));
-  };
-
-  const handleZoomIncreaseClick = () => {
-    onChange(value * (1 + ZOOM_STEP));
-  };
-
-  const handleZoomValueChange = (newValue: string) => {
-    if (!newValue.match(/\d+\.\d?/)) {
-      return;
-    }
-
-    onChange(parseFloat(newValue) / 100);
-  };
-
-  return (
-    <>
-      <ActionButton
-        aria-label="Decrease zoom"
-        isQuiet
-        onPress={handleZoomDecreaseClick}
-      >
-        -
-      </ActionButton>
-      <TextField
-        aria-label="Zoom factor"
-        value={(value * 100).toFixed(2)}
-        onChange={handleZoomValueChange}
-      />
-      <ActionButton
-        aria-label="Increase zoom"
-        isQuiet
-        onPress={handleZoomIncreaseClick}
-      >
-        +
-      </ActionButton>
-    </>
-  );
-}
-
-function InformationPanel(props: {
-  position: [number, number];
-  size: [number, number];
-  color: [number, number, number, number];
-}) {
-  const { position, size, color } = props;
-
-  const info = {
-    rgb: {
-      r: `R: ${color[0]}`,
-      g: `G: ${color[1]}`,
-      b: `B: ${color[2]}`,
-      a: `A: ${color[3]}`,
-    },
-    hsv: {
-      h: `H: ${color[0]}`,
-      s: `S: ${color[1]}`,
-      v: `V: ${color[2]}`,
-    },
-    position: {
-      x: `X: ${position[0]} / ${(position[0] / size[0]).toFixed(2)}`,
-      y: `X: ${position[1]} / ${(position[1] / size[1]).toFixed(2)}`,
-    },
-  };
-
-  const informationSection = Object.entries(info).map(([name, col]) => (
-    <Flex key={name} direction="column">
-      {Object.entries(col).map(([name, row]) => (
-        <View key={name}>{row}</View>
-      ))}
-    </Flex>
-  ));
-
-  return (
-    <div>
-      <Heading>Information</Heading>
-      <Flex direction="row" gap="size-200">
-        <View
-          width="size-200"
-          height="size-200"
-          UNSAFE_style={{
-            backgroundColor: `rgba(${color.join(", ")})`,
-          }}
-        />
-
-        <Divider orientation="vertical" />
-
-        <Flex direction="row" gap="size-200">
-          {informationSection}
-        </Flex>
-      </Flex>
     </div>
   );
 }
