@@ -2,30 +2,55 @@ import React from 'react';
 
 import { Flex, View, Heading, Divider } from '@adobe/react-spectrum';
 
-export function InformationPanel(props: {
-    position: [number, number];
-    size: [number, number];
-    color: [number, number, number, number];
-  }) {
-    const { position, size, color } = props;
+import { ColorRgba, rgbaToHex, rgbaToHsl } from '../shared/color';
+
+const UNIT8_MAX = 255;
+const BLACK_COLOR: ColorRgba = [0, 0, 0, 0];
+
+function getPixelAt(imageData: ImageData, position: [number, number]): ColorRgba {
+  const { data, width } = imageData;
+  const offset = (position[1] * (width * 4)) + (position[0] * 4);
   
-    const info = {
+  return offset < data.length ? 
+    [data[offset], data[offset + 1], data[offset + 2], data[offset + 3]] :
+    BLACK_COLOR;
+}
+
+function getPixelData(position: [number, number], imageData: ImageData | null) {
+  const rgba = imageData ? getPixelAt(imageData, position) : BLACK_COLOR;
+  const hsl = rgbaToHsl(rgba);
+  const hex = rgbaToHex(rgba);
+
+  return {
+    color: rgba,
+    info: {
       rgb: {
-        r: `R: ${color[0]}`,
-        g: `G: ${color[1]}`,
-        b: `B: ${color[2]}`,
-        a: `A: ${color[3]}`,
+        r: `R: ${rgba[0]} / ${(rgba[0] / UNIT8_MAX).toFixed(3)}`,
+        g: `G: ${rgba[1]} / ${(rgba[1] / UNIT8_MAX).toFixed(3)}`,
+        b: `B: ${rgba[2]} / ${(rgba[2] / UNIT8_MAX).toFixed(3)}`,
+        a: `A: ${rgba[3]} / ${(rgba[3] / UNIT8_MAX).toFixed(3)}`,
       },
       hsv: {
-        h: `H: ${color[0]}`,
-        s: `S: ${color[1]}`,
-        v: `V: ${color[2]}`,
+        h: `H: ${Math.floor(hsl[0])} / ${(hsl[0] / UNIT8_MAX).toFixed(3)}`,
+        s: `S: ${Math.floor(hsl[1])} / ${(hsl[1] / UNIT8_MAX).toFixed(3)}`,
+        l: `L: ${Math.floor(hsl[2])} / ${(hsl[2] / UNIT8_MAX).toFixed(3)}`,
+        hex: `Hex: ${hex}`
       },
       position: {
-        x: `X: ${position[0]} / ${(position[0] / size[0]).toFixed(2)}`,
-        y: `X: ${position[1]} / ${(position[1] / size[1]).toFixed(2)}`,
+        x: imageData ? `X: ${position[0]} / ${(position[0] / imageData.width).toFixed(2)}` : `X: 0 / 0`,
+        y: imageData ? `X: ${position[1]} / ${(position[1] / imageData.height).toFixed(2)}` : `Y: 0 / 0`,
       },
-    };
+    }
+  };
+}
+
+export function InformationPanel(props: {
+    position: [number, number];
+    imageData: ImageData | null;
+  }) {
+    const { position, imageData } = props;
+
+    const { color, info } = getPixelData(position, imageData);
   
     const informationSection = Object.entries(info).map(([name, col]) => (
       <Flex key={name} direction="column">
@@ -49,7 +74,7 @@ export function InformationPanel(props: {
   
           <Divider orientation="vertical" />
   
-          <Flex direction="row" gap="size-200">
+          <Flex direction="row" gap="size-200" flex="1" justifyContent="space-between">
             {informationSection}
           </Flex>
         </Flex>

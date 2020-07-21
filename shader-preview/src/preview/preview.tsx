@@ -216,6 +216,7 @@ function Preview(props: { url: string }) {
   const [channels, setChannels] = useState<ColorChannel>(ColorChannel.RGB);
   const [tiling, setTiling] = useState<boolean>(false);
   const [zoom, setZoom] = useState<number>(1);
+  const [mousePosition, setMousePosition] = useState<[number, number]>([0, 0]);
 
   const [isInfoVisible, setIsInfoVisible] = useState<boolean>(false);
 
@@ -238,6 +239,11 @@ function Preview(props: { url: string }) {
     }
   }, [imageData, channels, tiling, zoom]);
 
+  const handleMouseMove = (evt: React.MouseEvent) => {
+    const { clientX, clientY } = evt;
+    setMousePosition([clientX, clientY]);
+  }
+
   return (
     <div className="preview">
       <ColorChannelPicker
@@ -258,20 +264,18 @@ function Preview(props: { url: string }) {
       >
         <InfoIcon />
       </SelectableActionButton>
-
       <ZoomControl value={zoom} onChange={(value) => setZoom(value)} />
 
       <Divider />
 
-      <canvas ref={canvasRef} width="512" height="512"></canvas>
+      <canvas ref={canvasRef} onMouseMove={handleMouseMove} width="512" height="512"></canvas>
 
       <Divider />
 
       {isInfoVisible && (
         <InformationPanel
-          position={[256, 256]}
-          size={imageData ? [imageData.width, imageData.height] : [0, 0]}
-          color={[255, 255, 255, 255]}
+          position={mousePosition}
+          imageData={imageData}
         />
       )}
     </div>
