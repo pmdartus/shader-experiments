@@ -1,7 +1,8 @@
+import * as m3 from "../utils/m3";
 import { createShader, createProgram } from "../webgl/shader";
 
 import { DISPLAY_CHANNELS } from "./constants";
-import { Camera, ColorChannel } from "./types";
+import { ColorChannel } from "./types";
 
 // prettier-ignore
 const POSITION_VERTEX = new Float32Array([
@@ -18,7 +19,7 @@ const VERTEX_SHADER_SRC = `#version 300 es
 in vec2 a_position;
 in vec2 a_texCoord;
 
-uniform vec2 u_resolution;
+uniform mat3 u_matrix;
 
 out vec2 v_texCoord;
 
@@ -26,11 +27,7 @@ out vec2 v_texCoord;
 void main() {
   gl_Position = vec4(a_position, 0, 1);
 
-  v_texCoord =  (mat3(
-    1.0, 0.0, 0.0,
-    0.0, 1.0, 0.0,
-    0.0, 0.0, 1.0
-  ) * vec3(a_texCoord, 1)).xy;
+  v_texCoord =  (u_matrix * vec3(a_texCoord, 1)).xy;
 }
 `;
 
@@ -38,17 +35,16 @@ const FRAGMENT_SHADER_SRC = `#version 300 es
 
 precision highp float;
 
+in vec2 v_texCoord;
+
 uniform sampler2D u_image;
 uniform mat3 u_channelsFilter;
 uniform bool u_tiling;
-uniform float u_zoom;
-
-in vec2 v_texCoord;
 
 out vec4 outColor;
 
 void main() {
-  vec2 pos = v_texCoord * vec2(u_zoom);
+  vec2 pos = v_texCoord;
 
   if (!u_tiling && any(greaterThan(abs(pos), vec2(1.0)))) {
     discard;
@@ -62,16 +58,17 @@ export function drawPreview(
   canvas: HTMLCanvasElement,
   config: {
     imageData: ImageData;
-    camera: Camera;
-    channels: ColorChannel;
-    tiling: boolean;
+    projectionMatrix: m3.M3;
+    options: {
+      channels: ColorChannel;
+      tiling: boolean;
+    };
   }
 ): void {
   const {
     imageData,
-    channels,
-    tiling,
-    camera: { zoom },
+    projectionMatrix,
+    options: { channels, tiling },
   } = config;
   const { clientWidth, clientHeight } = canvas;
 
@@ -97,17 +94,14 @@ export function drawPreview(
   const positionAttributeLocation = gl.getAttribLocation(program, "a_position");
   const texCoordAtributeLocation = gl.getAttribLocation(program, "a_texCoord");
 
-  const resolutionUniformLocation = gl.getUniformLocation(
-    program,
-    "u_resolution"
-  );
   const imageUniformLocation = gl.getUniformLocation(program, "u_image");
+  const matrixUniformLocation = gl.getUniformLocation(program, "u_matrix");
+
   const channelsFilerLocation = gl.getUniformLocation(
     program,
     "u_channelsFilter"
   );
   const tilingUniformLocation = gl.getUniformLocation(program, "u_tiling");
-  const zoomUnfiormLocation = gl.getUniformLocation(program, "u_zoom");
 
   const vao = gl.createVertexArray();
   gl.bindVertexArray(vao);
@@ -161,7 +155,6 @@ export function drawPreview(
 
   gl.bindVertexArray(vao);
 
-  gl.uniform2f(resolutionUniformLocation, canvas.width, canvas.height);
   gl.uniform1i(imageUniformLocation, 0);
   gl.uniformMatrix3fv(
     channelsFilerLocation,
@@ -169,7 +162,7 @@ export function drawPreview(
     DISPLAY_CHANNELS[channels].filter
   );
   gl.uniform1i(tilingUniformLocation, tiling ? 1 : 0);
-  gl.uniform1f(zoomUnfiormLocation, zoom);
+  gl.uniformMatrix3fv(matrixUniformLocation, false, projectionMatrix);
 
   gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
   gl.bufferData(gl.ARRAY_BUFFER, POSITION_VERTEX, gl.STATIC_DRAW);

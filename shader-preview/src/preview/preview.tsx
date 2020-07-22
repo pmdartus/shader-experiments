@@ -4,6 +4,8 @@ import TilingIcon from "@spectrum-icons/workflow/ClassicGridView";
 import InfoIcon from "@spectrum-icons/workflow/Info";
 import { Divider } from "@adobe/react-spectrum";
 
+import * as m3 from "../utils/m3";
+
 import { drawPreview } from "./renderer";
 import { InformationPanel } from "./preview-information-panel";
 import {
@@ -40,6 +42,24 @@ function loadImageData(url: string): Promise<ImageData> {
   });
 }
 
+function getCameraMatrix(camera: Camera): m3.M3 {
+  const zoomFactor = 1 / camera.zoom;
+
+  let cameraMat = m3.identity();
+  cameraMat = m3.translate(cameraMat, camera.position[0], camera.position[1]);
+  cameraMat = m3.scale(cameraMat, zoomFactor, zoomFactor);
+
+  return cameraMat;
+}
+
+function getViewProjection(canvas: HTMLCanvasElement, camera: Camera): m3.M3 {
+  const { width, height } = canvas;
+  const projectionMat = m3.projection(width, height);
+  const cameraMat = getCameraMatrix(camera);
+  const viewMatrix = m3.inverse(cameraMat);
+  return m3.multiply(projectionMat, viewMatrix);
+}
+
 function getFocusZoomFactor(
   imageData: ImageData,
   canvas: HTMLCanvasElement
@@ -52,7 +72,7 @@ function getFocusZoomFactor(
 function Preview(props: { url: string }) {
   const [imageData, setImageData] = useState<ImageData | null>(null);
   const [camera, setCamera] = useState<Camera>({
-    position: [0.5, 0.5],
+    position: [0, 0],
     zoom: 1,
   });
 
@@ -69,23 +89,28 @@ function Preview(props: { url: string }) {
       setImageData(imageData);
 
       if (canvasRef.current) {
-        const zoom = getFocusZoomFactor(imageData, canvasRef.current);
+        // const zoom = getFocusZoomFactor(imageData, canvasRef.current);
 
         setCamera({
-          position: [0.5, 0.5],
-          zoom,
+          position: [0, 0],
+          zoom: 1,
         });
       }
     });
   }, [props.url]);
 
   useEffect(() => {
-    if (canvasRef.current && imageData) {
-      drawPreview(canvasRef.current, {
+    const canvas = canvasRef.current;
+    if (canvas !== null && imageData !== null) {
+      const projectionMatrix = getViewProjection(canvas, camera);
+
+      drawPreview(canvas, {
         imageData,
-        channels,
-        tiling,
-        camera,
+        projectionMatrix,
+        options: {
+          channels,
+          tiling,
+        },
       });
     }
   }, [imageData, channels, tiling, camera]);
@@ -120,12 +145,37 @@ function Preview(props: { url: string }) {
       });
     };
 
+    const handleMouseDown = () => {
+      window.addEventListener("mousemove", handleDragMouseMove);
+      window.addEventListener("mouseup", handleDragMouseUp);
+    };
+
+    const handleDragMouseMove = (evt: MouseEvent) => {
+      const [x, y] = camera.position;
+      const { movementX, movementY } = evt;
+
+      setCamera({
+        ...camera,
+        position: [x + movementX, y + movementY],
+      });
+    };
+
+    const handleDragMouseUp = () => {
+      window.removeEventListener("mousemove", handleDragMouseMove);
+      window.removeEventListener("mouseup", handleDragMouseUp);
+    };
+
     canvas.addEventListener("mousemove", handleCanvasMouseMove);
     canvas.addEventListener("wheel", handleCanvasScroll);
+    canvas.addEventListener("mousedown", handleMouseDown);
 
     return () => {
       canvas.removeEventListener("mousemove", handleCanvasMouseMove);
       canvas.removeEventListener("wheel", handleCanvasScroll);
+
+      canvas.removeEventListener("mousedown", handleMouseDown);
+      window.removeEventListener("mousemove", handleDragMouseMove);
+      window.removeEventListener("mouseup", handleDragMouseUp);
     };
   }, [camera]);
 
