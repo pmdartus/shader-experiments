@@ -10,7 +10,9 @@ import {
 } from "@adobe/react-spectrum";
 import LayersIcon from "@spectrum-icons/workflow/Layers";
 
-import { ColorChannel, DISPLAY_CHANNELS, ZOOM_STEP } from "./shared";
+import { ColorChannel } from "./types";
+import { DISPLAY_CHANNELS, ZOOM_STEP } from "./constants";
+import { ColorRgba } from "../utils/color";
 
 export function ColorChannelPicker(props: {
   value: ColorChannel;

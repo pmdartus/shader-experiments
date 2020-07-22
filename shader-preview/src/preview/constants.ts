@@ -1,9 +1,4 @@
-export enum ColorChannel {
-  RGB = "RGB",
-  R = "R",
-  G = "G",
-  B = "B",
-}
+import { ColorChannel } from "./types";
 
 export const DISPLAY_CHANNELS: Record<
   ColorChannel,
