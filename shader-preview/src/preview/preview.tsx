@@ -52,21 +52,28 @@ function getCameraMatrix(camera: Camera): m3.M3 {
   return cameraMat;
 }
 
-function getViewProjection(canvas: HTMLCanvasElement, camera: Camera): m3.M3 {
-  const { width, height } = canvas;
-  const projectionMat = m3.projection(width, height);
-  const cameraMat = getCameraMatrix(camera);
-  const viewMatrix = m3.inverse(cameraMat);
-  return m3.multiply(projectionMat, viewMatrix);
+function getViewMatrix(canvas: HTMLCanvasElement, camera: Camera): m3.M3 {
+  let matrix = m3.projection(canvas.clientWidth, canvas.clientHeight);
+  matrix = m3.translate(matrix, camera.position[0], camera.position[1]);
+  matrix = m3.scale(matrix, camera.zoom, camera.zoom);
+
+  return matrix;
 }
 
-function getFocusZoomFactor(
+function getInitialCamera(
   imageData: ImageData,
   canvas: HTMLCanvasElement
-): number {
-  const { width, height } = canvas.getBoundingClientRect();
+): Camera {
+  const position: Position = [0, 0];
+  const zoom = Math.min(
+    canvas.width / imageData.width,
+    canvas.height / imageData.height
+  );
 
-  return Math.min(imageData.width / width, imageData.height / height);
+  return {
+    position,
+    zoom,
+  };
 }
 
 function Preview(props: { url: string }) {
@@ -92,12 +99,8 @@ function Preview(props: { url: string }) {
       setImageData(imageData);
 
       if (canvasRef.current) {
-        // const zoom = getFocusZoomFactor(imageData, canvasRef.current);
-
-        setCamera({
-          position: [0, 0],
-          zoom: 1,
-        });
+        const camera = getInitialCamera(imageData, canvasRef.current);
+        setCamera(camera);
       }
     });
   }, [props.url]);
@@ -109,10 +112,10 @@ function Preview(props: { url: string }) {
       const renderer = getPreviewRenderer(canvas);
       rendererRef.current = renderer;
 
-      const projectionMatrix = getViewProjection(canvas, camera);
+      const matrix = getViewMatrix(canvas, camera);
       renderer.update({
         imageData,
-        projectionMatrix,
+        matrix,
         channels,
         tiling,
       });
@@ -121,10 +124,10 @@ function Preview(props: { url: string }) {
 
   useEffect(() => {
     if (imageData && canvasRef.current && rendererRef.current) {
-      const projectionMatrix = getViewProjection(canvasRef.current, camera);
+      const matrix = getViewMatrix(canvasRef.current, camera);
       rendererRef.current.update({
         imageData,
-        projectionMatrix,
+        matrix,
         channels,
         tiling,
       });

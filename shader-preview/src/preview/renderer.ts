@@ -19,17 +19,12 @@ const VERTEX_SHADER_SRC = `#version 300 es
 in vec2 a_position;
 in vec2 a_texCoord;
 
-uniform vec2 u_resolution;
 uniform mat3 u_matrix;
 
 out vec2 v_texCoord;
 
 void main() {
-  vec2 zeroToOne = a_position / u_resolution;
-  vec2 zeroToTwo = zeroToOne * 2.0;
-  vec2 clipSpace = zeroToTwo - 1.0;
-
-  gl_Position = vec4(clipSpace * vec2(1, -1), 0, 1);
+  gl_Position = vec4((u_matrix * vec3(a_position, 1)).xy, 0, 1);
   v_texCoord =  a_texCoord;
 }
 `;
@@ -94,6 +89,7 @@ export function getPreviewRenderer(canvas: HTMLCanvasElement) {
     throw new Error(`Can't access webgl2 context`);
   }
 
+  // Setup shader
   const vertexShader = createShader(gl, gl.VERTEX_SHADER, VERTEX_SHADER_SRC);
   const fragmentShader = createShader(
     gl,
@@ -102,46 +98,47 @@ export function getPreviewRenderer(canvas: HTMLCanvasElement) {
   );
   const program = createProgram(gl, vertexShader, fragmentShader);
 
+  // Get attribute locations.
   const positionAttributeLocation = gl.getAttribLocation(program, "a_position");
   const texCoordAttributeLocation = gl.getAttribLocation(program, "a_texCoord");
 
+  // Get uniform locations.
   const imageUniformLocation = gl.getUniformLocation(program, "u_image");
   const matrixUniformLocation = gl.getUniformLocation(program, "u_matrix");
-  const resolutionUniformLocation = gl.getUniformLocation(
-    program,
-    "u_resolution"
-  );
-
+  const tilingUniformLocation = gl.getUniformLocation(program, "u_tiling");
   const channelsFilerLocation = gl.getUniformLocation(
     program,
     "u_channelsFilter"
   );
-  const tilingUniformLocation = gl.getUniformLocation(program, "u_tiling");
 
+  // Create vertex array.
   const vao = gl.createVertexArray();
   gl.bindVertexArray(vao);
 
+  // Setup position attribute buffer.
   const positionBuffer = gl.createBuffer();
   gl.enableVertexAttribArray(positionAttributeLocation);
   gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
   gl.vertexAttribPointer(positionAttributeLocation, 2, gl.FLOAT, false, 0, 0);
 
+  // Setup texture coordinate attribute buffer.
   const textCoordBuffer = gl.createBuffer();
   gl.enableVertexAttribArray(texCoordAttributeLocation);
   gl.bindBuffer(gl.ARRAY_BUFFER, textCoordBuffer);
   gl.vertexAttribPointer(texCoordAttributeLocation, 2, gl.FLOAT, false, 0, 0);
 
+  // Setup image texture.
   const texture = gl.createTexture();
   gl.activeTexture(gl.TEXTURE0 + 0);
 
   return {
     update(config: {
       imageData: ImageData;
-      projectionMatrix: m3.M3;
+      matrix: m3.M3;
       channels: ColorChannel;
       tiling: boolean;
     }) {
-      const { imageData, projectionMatrix, channels, tiling } = config;
+      const { imageData, matrix, channels, tiling } = config;
       const channelFiler = DISPLAY_CHANNELS[channels].filter;
 
       // Resize the display size and update tell WebGL how to convert pixels to clip size.
@@ -168,17 +165,11 @@ export function getPreviewRenderer(canvas: HTMLCanvasElement) {
         imageData
       );
 
-      let proj = m3.identity();
-      // proj = m3.projection(canvas.width, canvas.height);
-      // proj = m3.scale(proj, 400, 400);
-      // proj = m3.translate(proj, 0.5, 0.5);
-
       // Set uniforms
       gl.uniform1i(imageUniformLocation, 0);
       gl.uniform1i(tilingUniformLocation, tiling ? 1 : 0);
       gl.uniformMatrix3fv(channelsFilerLocation, false, channelFiler);
-      gl.uniformMatrix3fv(matrixUniformLocation, false, proj);
-      gl.uniform2f(resolutionUniformLocation, canvas.width, canvas.height);
+      gl.uniformMatrix3fv(matrixUniformLocation, false, matrix);
 
       // Set position attribute
       gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
