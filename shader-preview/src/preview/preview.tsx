@@ -6,7 +6,7 @@ import { Divider } from "@adobe/react-spectrum";
 
 import * as m3 from "../utils/m3";
 
-import { drawPreview } from "./renderer";
+import { getPreviewRenderer } from "./renderer";
 import { InformationPanel } from "./preview-information-panel";
 import {
   ColorChannelPicker,
@@ -83,6 +83,9 @@ function Preview(props: { url: string }) {
   const [isInfoVisible, setIsInfoVisible] = useState(false);
 
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const rendererRef = useRef<ReturnType<typeof getPreviewRenderer> | null>(
+    null
+  );
 
   useEffect(() => {
     loadImageData(props.url).then((imageData) => {
@@ -101,19 +104,32 @@ function Preview(props: { url: string }) {
 
   useEffect(() => {
     const canvas = canvasRef.current;
-    if (canvas !== null && imageData !== null) {
-      const projectionMatrix = getViewProjection(canvas, camera);
 
-      drawPreview(canvas, {
+    if (canvas !== null && imageData !== null) {
+      const renderer = getPreviewRenderer(canvas);
+      rendererRef.current = renderer;
+
+      const projectionMatrix = getViewProjection(canvas, camera);
+      renderer.update({
         imageData,
         projectionMatrix,
-        options: {
-          channels,
-          tiling,
-        },
+        channels,
+        tiling,
       });
     }
-  }, [imageData, channels, tiling, camera]);
+  }, [imageData]);
+
+  useEffect(() => {
+    if (imageData && canvasRef.current && rendererRef.current) {
+      const projectionMatrix = getViewProjection(canvasRef.current, camera);
+      rendererRef.current.update({
+        imageData,
+        projectionMatrix,
+        channels,
+        tiling,
+      });
+    }
+  }, [imageData, camera, channels, tiling]);
 
   // TODO: Remove event listeners from useEffect block.
   // This is currently needed because using JSX to attach the wheel event makes the event passive.
