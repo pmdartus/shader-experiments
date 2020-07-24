@@ -90,17 +90,12 @@ function Preview(props: { imageData: ImageData | null }) {
       return;
     }
 
-    const backgroundColor = hexToRgba(
-      window
-        .getComputedStyle(canvas)
-        .getPropertyValue("--spectrum-global-color-gray-50")
-    );
-
-    setRenderer(
-      getPreviewRenderer(canvas, {
-        backgroundColor,
-      })
-    );
+    const renderer = getPreviewRenderer(canvas);
+    setRenderer(renderer);
+    setCamera({
+      position: [0, 0],
+      zoom: 1,
+    });
   }, []);
 
   useEffect(() => {
@@ -250,11 +245,11 @@ function Preview(props: { imageData: ImageData | null }) {
         </Flex>
       </View>
 
-      <View flex="1" backgroundColor="celery-400">
-        {/* <canvas
+      <View flex="1" backgroundColor="gray-50">
+        <canvas
           ref={canvasRef}
           style={{ width: "100%", height: "100%" }}
-        ></canvas> */}
+        ></canvas>
       </View>
 
       {isInfoVisible &&

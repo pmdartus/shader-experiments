@@ -83,14 +83,7 @@ function setRectangle(
   );
 }
 
-export function getPreviewRenderer(
-  canvas: HTMLCanvasElement,
-  options: {
-    backgroundColor: ColorRgba;
-  }
-): PreviewRenderer {
-  const { backgroundColor } = options;
-
+export function getPreviewRenderer(canvas: HTMLCanvasElement): PreviewRenderer {
   const gl = canvas.getContext("webgl2");
 
   if (!gl) {
@@ -146,16 +139,11 @@ export function getPreviewRenderer(
       const channelFiler = DISPLAY_CHANNELS[channels].filter;
 
       // Resize the display size and update tell WebGL how to convert pixels to clip size.
-      resizeCanvasToDisplaySize(canvas);
+      // resizeCanvasToDisplaySize(canvas);
       gl.viewport(0, 0, canvas.width, canvas.height);
 
-      // Clear canvas with background color.
-      gl.clearColor(
-        backgroundColor[0] / 255,
-        backgroundColor[1] / 255,
-        backgroundColor[2] / 255,
-        backgroundColor[3] / 255
-      );
+      // Clear canvas.
+      gl.clearColor(0, 0, 0, 0);
       gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
       // Tell WebGL which program to use.
