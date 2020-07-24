@@ -57,13 +57,15 @@ export function InformationPanel(props: {
   imageData: ImageData | null;
 }) {
   const { position, imageData } = props;
-
   const { color, info } = getPixelData(position, imageData);
 
   return (
-    <div>
-      <Heading>Information</Heading>
-      <Flex direction="row" gap="size-200">
+    <>
+      <Heading margin="size-0" marginBottom="size-100">
+        Information
+      </Heading>
+
+      <Flex direction="row" gap="size-100">
         <View
           width="size-200"
           height="size-200"
@@ -89,6 +91,6 @@ export function InformationPanel(props: {
           ))}
         </Flex>
       </Flex>
-    </div>
+    </>
   );
 }

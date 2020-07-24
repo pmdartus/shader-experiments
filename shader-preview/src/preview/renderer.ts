@@ -1,18 +1,19 @@
 import * as m3 from "../utils/m3";
+import { ColorRgba } from "../utils/color";
 import { createShader, createProgram } from "../webgl/shader";
 
 import { DISPLAY_CHANNELS } from "./constants";
 import { ColorChannel } from "./types";
 
-// prettier-ignore
-const POSITION_VERTEX = new Float32Array([
-  -1, -1,
-  1, -1,
-  -1, 1,
-  -1, 1,
-  1, -1,
-  1, 1
-]);
+export interface PreviewRenderer {
+  canvas: HTMLCanvasElement;
+  update(config: {
+    imageData: ImageData;
+    matrix: m3.M3;
+    channels: ColorChannel;
+    tiling: boolean;
+  }): void;
+}
 
 const VERTEX_SHADER_SRC = `#version 300 es
 
@@ -25,7 +26,7 @@ out vec2 v_texCoord;
 
 void main() {
   gl_Position = vec4((u_matrix * vec3(a_position, 1)).xy, 0, 1);
-  v_texCoord =  a_texCoord;
+  v_texCoord = a_texCoord;
 }
 `;
 
@@ -82,7 +83,14 @@ function setRectangle(
   );
 }
 
-export function getPreviewRenderer(canvas: HTMLCanvasElement) {
+export function getPreviewRenderer(
+  canvas: HTMLCanvasElement,
+  options: {
+    backgroundColor: ColorRgba;
+  }
+): PreviewRenderer {
+  const { backgroundColor } = options;
+
   const gl = canvas.getContext("webgl2");
 
   if (!gl) {
@@ -132,12 +140,8 @@ export function getPreviewRenderer(canvas: HTMLCanvasElement) {
   gl.activeTexture(gl.TEXTURE0 + 0);
 
   return {
-    update(config: {
-      imageData: ImageData;
-      matrix: m3.M3;
-      channels: ColorChannel;
-      tiling: boolean;
-    }) {
+    canvas,
+    update(config) {
       const { imageData, matrix, channels, tiling } = config;
       const channelFiler = DISPLAY_CHANNELS[channels].filter;
 
@@ -145,8 +149,13 @@ export function getPreviewRenderer(canvas: HTMLCanvasElement) {
       resizeCanvasToDisplaySize(canvas);
       gl.viewport(0, 0, canvas.width, canvas.height);
 
-      // Clear canvas
-      gl.clearColor(0, 0, 0, 0);
+      // Clear canvas with background color.
+      gl.clearColor(
+        backgroundColor[0] / 255,
+        backgroundColor[1] / 255,
+        backgroundColor[2] / 255,
+        backgroundColor[3] / 255
+      );
       gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
       // Tell WebGL which program to use.

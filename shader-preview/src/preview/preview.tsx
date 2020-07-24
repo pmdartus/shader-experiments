@@ -1,12 +1,16 @@
 import React, { useRef, useState, useEffect } from "react";
 
-import TilingIcon from "@spectrum-icons/workflow/ClassicGridView";
 import InfoIcon from "@spectrum-icons/workflow/Info";
-import { Divider } from "@adobe/react-spectrum";
+import TilingIcon from "@spectrum-icons/workflow/ClassicGridView";
+import FullScreenIcon from "@spectrum-icons/workflow/FullScreen";
+import FullScreenExitIcon from "@spectrum-icons/workflow/FullScreenExit";
+
+import { ActionButton, Flex, View } from "@adobe/react-spectrum";
 
 import * as m3 from "../utils/m3";
+import { hexToRgba } from "../utils/color";
 
-import { getPreviewRenderer } from "./renderer";
+import { getPreviewRenderer, PreviewRenderer } from "./renderer";
 import { InformationPanel } from "./preview-information-panel";
 import {
   ColorChannelPicker,
@@ -16,55 +20,42 @@ import {
 
 import { Camera, Position, ColorChannel } from "./types";
 
-function loadImageData(url: string): Promise<ImageData> {
-  const image = new Image();
-  image.crossOrigin = "anonymous";
-
-  return new Promise((resolve, reject) => {
-    image.onload = () => {
-      const canvas = document.createElement("canvas");
-      canvas.width = image.width;
-      canvas.height = image.height;
-
-      const ctx = canvas.getContext("2d");
-
-      if (ctx === null) {
-        return reject(new Error(`Can't access 2d context`));
-      }
-
-      ctx.drawImage(image, 0, 0);
-      const data = ctx.getImageData(0, 0, image.width, image.height);
-
-      resolve(data);
-    };
-
-    image.src = url;
-  });
+function getProjectionMatrix(canvas: HTMLCanvasElement): m3.M3 {
+  return m3.projection(canvas.width, canvas.height);
 }
 
 function getCameraMatrix(camera: Camera): m3.M3 {
-  const zoomFactor = 1 / camera.zoom;
+  const zoomScale = 1 / camera.zoom;
 
-  let cameraMat = m3.identity();
-  cameraMat = m3.translate(cameraMat, camera.position[0], camera.position[1]);
-  cameraMat = m3.scale(cameraMat, zoomFactor, zoomFactor);
+  let cameraMatrix = m3.identity();
+  cameraMatrix = m3.translate(
+    cameraMatrix,
+    camera.position[0],
+    camera.position[1]
+  );
+  cameraMatrix = m3.scale(cameraMatrix, zoomScale, zoomScale);
 
-  return cameraMat;
+  return cameraMatrix;
 }
 
-function getViewMatrix(canvas: HTMLCanvasElement, camera: Camera): m3.M3 {
-  let matrix = m3.projection(canvas.clientWidth, canvas.clientHeight);
-  matrix = m3.translate(matrix, camera.position[0], camera.position[1]);
-  matrix = m3.scale(matrix, camera.zoom, camera.zoom);
+function getViewProjectionMatrix(
+  canvas: HTMLCanvasElement,
+  camera: Camera
+): m3.M3 {
+  const projectionMatrix = getProjectionMatrix(canvas);
+  const cameraMatrix = getCameraMatrix(camera);
 
-  return matrix;
+  let viewMatrix = m3.inverse(cameraMatrix);
+  viewMatrix = m3.multiply(projectionMatrix, viewMatrix);
+
+  return viewMatrix;
 }
 
 function getInitialCamera(
   imageData: ImageData,
   canvas: HTMLCanvasElement
 ): Camera {
-  const position: Position = [0, 0];
+  const position: Position = [canvas.width / 2, canvas.height / 2];
   const zoom = Math.min(
     canvas.width / imageData.width,
     canvas.height / imageData.height
@@ -76,8 +67,10 @@ function getInitialCamera(
   };
 }
 
-function Preview(props: { url: string }) {
-  const [imageData, setImageData] = useState<ImageData | null>(null);
+function Preview(props: { imageData: ImageData | null }) {
+  const { imageData } = props;
+
+  const [renderer, setRenderer] = useState<PreviewRenderer | null>(null);
   const [camera, setCamera] = useState<Camera>({
     position: [0, 0],
     zoom: 1,
@@ -90,49 +83,39 @@ function Preview(props: { url: string }) {
   const [isInfoVisible, setIsInfoVisible] = useState(false);
 
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  const rendererRef = useRef<ReturnType<typeof getPreviewRenderer> | null>(
-    null
-  );
-
-  useEffect(() => {
-    loadImageData(props.url).then((imageData) => {
-      setImageData(imageData);
-
-      if (canvasRef.current) {
-        const camera = getInitialCamera(imageData, canvasRef.current);
-        setCamera(camera);
-      }
-    });
-  }, [props.url]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
-
-    if (canvas !== null && imageData !== null) {
-      const renderer = getPreviewRenderer(canvas);
-      rendererRef.current = renderer;
-
-      const matrix = getViewMatrix(canvas, camera);
-      renderer.update({
-        imageData,
-        matrix,
-        channels,
-        tiling,
-      });
+    if (canvas === null) {
+      return;
     }
-  }, [imageData]);
+
+    const backgroundColor = hexToRgba(
+      window
+        .getComputedStyle(canvas)
+        .getPropertyValue("--spectrum-global-color-gray-50")
+    );
+
+    setRenderer(
+      getPreviewRenderer(canvas, {
+        backgroundColor,
+      })
+    );
+  }, []);
 
   useEffect(() => {
-    if (imageData && canvasRef.current && rendererRef.current) {
-      const matrix = getViewMatrix(canvasRef.current, camera);
-      rendererRef.current.update({
-        imageData,
-        matrix,
-        channels,
-        tiling,
-      });
+    if (renderer === null || imageData === null) {
+      return;
     }
-  }, [imageData, camera, channels, tiling]);
+
+    const matrix = getViewProjectionMatrix(renderer.canvas, camera);
+    renderer.update({
+      imageData,
+      matrix,
+      channels,
+      tiling,
+    });
+  }, [renderer, imageData, camera, channels, tiling]);
 
   // TODO: Remove event listeners from useEffect block.
   // This is currently needed because using JSX to attach the wheel event makes the event passive.
@@ -213,33 +196,74 @@ function Preview(props: { url: string }) {
     setIsInfoVisible(!isInfoVisible);
   };
 
+  const fitToPreview = () => {
+    if (imageData && canvasRef.current) {
+      const camera = getInitialCamera(imageData, canvasRef.current);
+      setCamera(camera);
+    } else {
+      fitToContent();
+    }
+  };
+
+  const fitToContent = () => {
+    setCamera({
+      position: [0, 0],
+      zoom: 1,
+    });
+  };
+
   return (
-    <div className="preview">
-      <ColorChannelPicker value={channels} onChange={setChannels} />
+    <Flex direction="column" height="100%">
+      <View padding="size-50" borderColor="gray-700" borderBottomWidth="thin">
+        <Flex
+          direction="row"
+          justifyContent="space-between"
+          gap="size-200"
+          UNSAFE_style={{ overflow: "hidden" }}
+        >
+          <Flex wrap="nowrap">
+            <ColorChannelPicker value={channels} onChange={setChannels} />
 
-      <SelectableActionButton isSelected={tiling} onPress={toggleTiling}>
-        <TilingIcon />
-      </SelectableActionButton>
+            <SelectableActionButton isSelected={tiling} onPress={toggleTiling}>
+              <TilingIcon />
+            </SelectableActionButton>
 
-      <SelectableActionButton
-        isSelected={isInfoVisible}
-        onPress={toggleIsInfoVisible}
-      >
-        <InfoIcon />
-      </SelectableActionButton>
+            <SelectableActionButton
+              isSelected={isInfoVisible}
+              onPress={toggleIsInfoVisible}
+            >
+              <InfoIcon />
+            </SelectableActionButton>
+          </Flex>
 
-      <ZoomControl value={camera.zoom} onChange={handleZoomChange} />
+          <Flex wrap="nowrap">
+            <ActionButton aria-label="Fit to preview" onPress={fitToPreview}>
+              <FullScreenIcon />
+            </ActionButton>
 
-      <Divider />
+            <ActionButton aria-label="Fit to content" onPress={fitToContent}>
+              <FullScreenExitIcon />
+            </ActionButton>
 
-      <canvas ref={canvasRef} width="750" height="512"></canvas>
+            <ZoomControl value={camera.zoom} onChange={handleZoomChange} />
+          </Flex>
+        </Flex>
+      </View>
 
-      <Divider />
+      <View flex="1" backgroundColor="celery-400">
+        {/* <canvas
+          ref={canvasRef}
+          style={{ width: "100%", height: "100%" }}
+        ></canvas> */}
+      </View>
 
-      {isInfoVisible && (
-        <InformationPanel position={mousePosition} imageData={imageData} />
-      )}
-    </div>
+      {isInfoVisible &&
+        ((
+          <View padding="size-100" borderColor="gray-700" borderTopWidth="thin">
+            <InformationPanel position={mousePosition} imageData={imageData} />
+          </View>
+        ) as any)}
+    </Flex>
   );
 }
 

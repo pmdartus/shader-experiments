@@ -5,14 +5,12 @@ import {
   Menu,
   Item,
   ActionButton,
-  Text,
   TextField,
 } from "@adobe/react-spectrum";
 import LayersIcon from "@spectrum-icons/workflow/Layers";
 
 import { ColorChannel } from "./types";
 import { DISPLAY_CHANNELS, ZOOM_STEP } from "./constants";
-import { ColorRgba } from "../utils/color";
 
 export function ColorChannelPicker(props: {
   value: ColorChannel;
@@ -38,7 +36,6 @@ export function ColorChannelPicker(props: {
     <MenuTrigger>
       <ActionButton aria-label="Select color channel">
         <LayersIcon />
-        <Text>Channels</Text>
       </ActionButton>
 
       <Menu
