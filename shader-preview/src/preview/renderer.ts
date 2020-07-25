@@ -1,19 +1,8 @@
 import * as m3 from "../utils/m3";
-import { ColorRgba } from "../utils/color";
 import { createShader, createProgram } from "../webgl/shader";
 
 import { DISPLAY_CHANNELS } from "./constants";
 import { ColorChannel } from "./types";
-
-export interface PreviewRenderer {
-  canvas: HTMLCanvasElement;
-  update(config: {
-    imageData: ImageData;
-    matrix: m3.M3;
-    channels: ColorChannel;
-    tiling: boolean;
-  }): void;
-}
 
 const VERTEX_SHADER_SRC = `#version 300 es
 
@@ -83,113 +72,182 @@ function setRectangle(
   );
 }
 
-export function getPreviewRenderer(canvas: HTMLCanvasElement): PreviewRenderer {
-  const gl = canvas.getContext("webgl2");
+interface PreviewConfig {
+  imageData: ImageData | null;
+  matrix: m3.M3;
+  tiling: boolean;
+  channels: ColorChannel;
+}
 
-  if (!gl) {
-    throw new Error(`Can't access webgl2 context`);
+export class PreviewRenderer {
+  canvas: HTMLCanvasElement;
+
+  readonly gl: WebGL2RenderingContext;
+  readonly program: WebGLProgram;
+  readonly buffers: Record<string, WebGLBuffer>;
+  readonly uniforms: Record<string, WebGLUniformLocation>;
+  readonly textures: Record<string, WebGLTexture>;
+
+  config: PreviewConfig = {
+    imageData: null,
+    matrix: m3.identity(),
+    tiling: false,
+    channels: ColorChannel.RGB,
+  };
+
+  isDrawScheduled = false;
+
+  constructor(canvas: HTMLCanvasElement) {
+    this.canvas = canvas;
+    const gl = (this.gl = canvas.getContext("webgl2")!);
+
+    // Setup shader
+    const vertexShader = createShader(gl, gl.VERTEX_SHADER, VERTEX_SHADER_SRC);
+    const fragmentShader = createShader(
+      gl,
+      gl.FRAGMENT_SHADER,
+      FRAGMENT_SHADER_SRC
+    );
+    const program = (this.program = createProgram(
+      gl,
+      vertexShader,
+      fragmentShader
+    ));
+
+    // Get attribute locations.
+    const positionAttributeLocation = gl.getAttribLocation(
+      program,
+      "a_position"
+    );
+    const texCoordAttributeLocation = gl.getAttribLocation(
+      program,
+      "a_texCoord"
+    );
+
+    // Get uniform locations.
+    const imageUniformLocation = gl.getUniformLocation(program, "u_image");
+    const matrixUniformLocation = gl.getUniformLocation(program, "u_matrix");
+    const tilingUniformLocation = gl.getUniformLocation(program, "u_tiling");
+    const channelsFilerLocation = gl.getUniformLocation(
+      program,
+      "u_channelsFilter"
+    );
+
+    this.uniforms = {
+      image: imageUniformLocation!,
+      matrix: matrixUniformLocation!,
+      tiling: tilingUniformLocation!,
+      channelsFilter: channelsFilerLocation!,
+    };
+
+    // Create vertex array.
+    const vao = gl.createVertexArray();
+    gl.bindVertexArray(vao);
+
+    // Setup position attribute buffer.
+    const positionBuffer = gl.createBuffer();
+    gl.enableVertexAttribArray(positionAttributeLocation);
+    gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
+    gl.vertexAttribPointer(positionAttributeLocation, 2, gl.FLOAT, false, 0, 0);
+
+    // Setup texture coordinate attribute buffer.
+    const textCoordBuffer = gl.createBuffer();
+    gl.enableVertexAttribArray(texCoordAttributeLocation);
+    gl.bindBuffer(gl.ARRAY_BUFFER, textCoordBuffer);
+    gl.vertexAttribPointer(texCoordAttributeLocation, 2, gl.FLOAT, false, 0, 0);
+
+    this.buffers = {
+      position: positionBuffer!,
+      texCoord: textCoordBuffer!,
+    };
+
+    // Setup image texture.
+    const imageTexture = gl.createTexture();
+    gl.activeTexture(gl.TEXTURE0 + 0);
+
+    this.textures = {
+      image: imageTexture!,
+    };
+
+    this.scheduleDraw();
   }
 
-  // Setup shader
-  const vertexShader = createShader(gl, gl.VERTEX_SHADER, VERTEX_SHADER_SRC);
-  const fragmentShader = createShader(
-    gl,
-    gl.FRAGMENT_SHADER,
-    FRAGMENT_SHADER_SRC
-  );
-  const program = createProgram(gl, vertexShader, fragmentShader);
+  setConfig(config: PreviewConfig) {
+    this.config = config;
+    this.scheduleDraw();
+  }
 
-  // Get attribute locations.
-  const positionAttributeLocation = gl.getAttribLocation(program, "a_position");
-  const texCoordAttributeLocation = gl.getAttribLocation(program, "a_texCoord");
+  private scheduleDraw() {
+    if (this.isDrawScheduled === false) {
+      this.isDrawScheduled = true;
 
-  // Get uniform locations.
-  const imageUniformLocation = gl.getUniformLocation(program, "u_image");
-  const matrixUniformLocation = gl.getUniformLocation(program, "u_matrix");
-  const tilingUniformLocation = gl.getUniformLocation(program, "u_tiling");
-  const channelsFilerLocation = gl.getUniformLocation(
-    program,
-    "u_channelsFilter"
-  );
+      requestAnimationFrame(() => {
+        this.isDrawScheduled = false;
+        this.draw();
+      });
+    }
+  }
 
-  // Create vertex array.
-  const vao = gl.createVertexArray();
-  gl.bindVertexArray(vao);
+  draw() {
+    const { canvas, gl, config } = this;
+    const channelFiler = DISPLAY_CHANNELS[config.channels].filter;
 
-  // Setup position attribute buffer.
-  const positionBuffer = gl.createBuffer();
-  gl.enableVertexAttribArray(positionAttributeLocation);
-  gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
-  gl.vertexAttribPointer(positionAttributeLocation, 2, gl.FLOAT, false, 0, 0);
+    // Resize the display size and update tell WebGL how to convert pixels to clip size.
+    resizeCanvasToDisplaySize(canvas);
+    gl.viewport(0, 0, canvas.width, canvas.height);
 
-  // Setup texture coordinate attribute buffer.
-  const textCoordBuffer = gl.createBuffer();
-  gl.enableVertexAttribArray(texCoordAttributeLocation);
-  gl.bindBuffer(gl.ARRAY_BUFFER, textCoordBuffer);
-  gl.vertexAttribPointer(texCoordAttributeLocation, 2, gl.FLOAT, false, 0, 0);
+    // Clear canvas.
+    gl.clearColor(0, 0, 0, 0);
+    gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
-  // Setup image texture.
-  const texture = gl.createTexture();
-  gl.activeTexture(gl.TEXTURE0 + 0);
+    // Early exit if imageData is not set
+    if (config.imageData === null) {
+      return;
+    }
 
-  return {
-    canvas,
-    update(config) {
-      const { imageData, matrix, channels, tiling } = config;
-      const channelFiler = DISPLAY_CHANNELS[channels].filter;
+    // Tell WebGL which program to use.
+    gl.useProgram(this.program);
 
-      // Resize the display size and update tell WebGL how to convert pixels to clip size.
-      resizeCanvasToDisplaySize(canvas);
-      gl.viewport(0, 0, canvas.width, canvas.height);
+    // Set texture
+    gl.bindTexture(gl.TEXTURE_2D, this.textures.image);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+    gl.texImage2D(
+      gl.TEXTURE_2D,
+      0,
+      gl.RGBA,
+      gl.RGBA,
+      gl.UNSIGNED_BYTE,
+      config.imageData
+    );
 
-      // Clear canvas.
-      gl.clearColor(0, 0, 0, 0);
-      gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+    // Set uniforms
+    gl.uniform1i(this.uniforms.image, 0);
+    gl.uniform1i(this.uniforms.tiling, config.tiling ? 1 : 0);
+    gl.uniformMatrix3fv(this.uniforms.channelsFilter, false, channelFiler);
+    gl.uniformMatrix3fv(this.uniforms.matrix, false, config.matrix);
 
-      // Tell WebGL which program to use.
-      gl.useProgram(program);
+    // Set position attribute
+    gl.bindBuffer(gl.ARRAY_BUFFER, this.buffers.position);
+    setRectangle(gl, 0, 0, config.imageData.width, config.imageData.height);
 
-      // Set texture
-      gl.bindTexture(gl.TEXTURE_2D, texture);
-      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
-      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
-      gl.texImage2D(
-        gl.TEXTURE_2D,
-        0,
-        gl.RGBA,
-        gl.RGBA,
-        gl.UNSIGNED_BYTE,
-        imageData
-      );
+    // Set texture coordinate attribute
+    gl.bindBuffer(gl.ARRAY_BUFFER, this.buffers.texCoord);
+    // prettier-ignore
+    gl.bufferData(
+      gl.ARRAY_BUFFER,
+      new Float32Array([
+        0.0,  0.0,
+        1.0,  0.0,
+        0.0,  1.0,
+        0.0,  1.0,
+        1.0,  0.0,
+        1.0,  1.0,
+      ]),
+      gl.STATIC_DRAW
+    );
 
-      // Set uniforms
-      gl.uniform1i(imageUniformLocation, 0);
-      gl.uniform1i(tilingUniformLocation, tiling ? 1 : 0);
-      gl.uniformMatrix3fv(channelsFilerLocation, false, channelFiler);
-      gl.uniformMatrix3fv(matrixUniformLocation, false, matrix);
-
-      // Set position attribute
-      gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
-      setRectangle(gl, 0, 0, imageData.width, imageData.height);
-
-      // Set texture coordinate attribute
-      gl.bindBuffer(gl.ARRAY_BUFFER, textCoordBuffer);
-      // prettier-ignore
-      gl.bufferData(
-        gl.ARRAY_BUFFER,
-        new Float32Array([
-          0.0,  0.0,
-          1.0,  0.0,
-          0.0,  1.0,
-          0.0,  1.0,
-          1.0,  0.0,
-          1.0,  1.0,
-        ]),
-        gl.STATIC_DRAW
-      );
-
-      // Draw the screen
-      gl.drawArrays(gl.TRIANGLES, 0, 6);
-    },
-  };
+    // Draw the screen
+    gl.drawArrays(gl.TRIANGLES, 0, 6);
+  }
 }
