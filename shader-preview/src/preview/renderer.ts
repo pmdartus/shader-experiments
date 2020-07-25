@@ -139,7 +139,7 @@ export function getPreviewRenderer(canvas: HTMLCanvasElement): PreviewRenderer {
       const channelFiler = DISPLAY_CHANNELS[channels].filter;
 
       // Resize the display size and update tell WebGL how to convert pixels to clip size.
-      // resizeCanvasToDisplaySize(canvas);
+      resizeCanvasToDisplaySize(canvas);
       gl.viewport(0, 0, canvas.width, canvas.height);
 
       // Clear canvas.

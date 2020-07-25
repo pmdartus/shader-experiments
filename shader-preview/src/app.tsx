@@ -46,7 +46,8 @@ export default function App() {
         <View
           borderColor="gray-700"
           borderWidth="thin"
-          UNSAFE_style={{ width: "512px", height: "512px" }}
+          width="size-6000"
+          height="size-6000"
         >
           <Preview imageData={imageData} />
         </View>

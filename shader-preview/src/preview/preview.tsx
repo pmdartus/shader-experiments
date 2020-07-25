@@ -1,23 +1,12 @@
 import React, { useRef, useState, useEffect } from "react";
 
-import InfoIcon from "@spectrum-icons/workflow/Info";
-import TilingIcon from "@spectrum-icons/workflow/ClassicGridView";
-import FullScreenIcon from "@spectrum-icons/workflow/FullScreen";
-import FullScreenExitIcon from "@spectrum-icons/workflow/FullScreenExit";
+import { Flex, View } from "@adobe/react-spectrum";
 
-import { ActionButton, Flex, View } from "@adobe/react-spectrum";
+import { ActionBar } from "./ActionBar";
+import { InformationPanel } from "./InformationPanel";
+import { getPreviewRenderer, PreviewRenderer } from "./renderer";
 
 import * as m3 from "../utils/m3";
-import { hexToRgba } from "../utils/color";
-
-import { getPreviewRenderer, PreviewRenderer } from "./renderer";
-import { InformationPanel } from "./preview-information-panel";
-import {
-  ColorChannelPicker,
-  ZoomControl,
-  SelectableActionButton,
-} from "./preview-controls";
-
 import { Camera, Position, ColorChannel } from "./types";
 
 function getProjectionMatrix(canvas: HTMLCanvasElement): m3.M3 {
@@ -183,14 +172,6 @@ function Preview(props: { imageData: ImageData | null }) {
     });
   };
 
-  const toggleTiling = () => {
-    setTiling(!tiling);
-  };
-
-  const toggleIsInfoVisible = () => {
-    setIsInfoVisible(!isInfoVisible);
-  };
-
   const fitToPreview = () => {
     if (imageData && canvasRef.current) {
       const camera = getInitialCamera(imageData, canvasRef.current);
@@ -209,52 +190,44 @@ function Preview(props: { imageData: ImageData | null }) {
 
   return (
     <Flex direction="column" height="100%">
-      <View padding="size-50" borderColor="gray-700" borderBottomWidth="thin">
-        <Flex
-          direction="row"
-          justifyContent="space-between"
-          gap="size-200"
-          UNSAFE_style={{ overflow: "hidden" }}
-        >
-          <Flex wrap="nowrap">
-            <ColorChannelPicker value={channels} onChange={setChannels} />
-
-            <SelectableActionButton isSelected={tiling} onPress={toggleTiling}>
-              <TilingIcon />
-            </SelectableActionButton>
-
-            <SelectableActionButton
-              isSelected={isInfoVisible}
-              onPress={toggleIsInfoVisible}
-            >
-              <InfoIcon />
-            </SelectableActionButton>
-          </Flex>
-
-          <Flex wrap="nowrap">
-            <ActionButton aria-label="Fit to preview" onPress={fitToPreview}>
-              <FullScreenIcon />
-            </ActionButton>
-
-            <ActionButton aria-label="Fit to content" onPress={fitToContent}>
-              <FullScreenExitIcon />
-            </ActionButton>
-
-            <ZoomControl value={camera.zoom} onChange={handleZoomChange} />
-          </Flex>
-        </Flex>
+      <View
+        padding="size-50"
+        borderColor="gray-700"
+        borderBottomWidth="thin"
+        overflow="hidden"
+      >
+        <ActionBar
+          channels={channels}
+          tiling={tiling}
+          infoVisible={isInfoVisible}
+          zoom={camera.zoom}
+          onChannelsChange={setChannels}
+          onTilingChange={setTiling}
+          onInfoVisibleChange={setIsInfoVisible}
+          onZoomChange={handleZoomChange}
+          fitToPreview={fitToPreview}
+          fitToContent={fitToContent}
+        />
       </View>
 
-      <View flex="1" backgroundColor="gray-50">
+      <View flex="1" backgroundColor="gray-50" overflow="hidden">
         <canvas
           ref={canvasRef}
-          style={{ width: "100%", height: "100%" }}
+          style={{
+            width: "100%",
+            height: "100%",
+          }}
         ></canvas>
       </View>
 
       {isInfoVisible &&
         ((
-          <View padding="size-100" borderColor="gray-700" borderTopWidth="thin">
+          <View
+            padding="size-100"
+            borderColor="gray-700"
+            borderTopWidth="thin"
+            overflow="hidden"
+          >
             <InformationPanel position={mousePosition} imageData={imageData} />
           </View>
         ) as any)}
