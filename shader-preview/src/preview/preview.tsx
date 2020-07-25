@@ -40,7 +40,7 @@ function getViewProjectionMatrix(
   return viewMatrix;
 }
 
-function getInitialCamera(
+function fitCameraToContent(
   imageData: ImageData,
   canvas: HTMLCanvasElement
 ): Camera {
@@ -54,6 +54,28 @@ function getInitialCamera(
     position,
     zoom,
   };
+}
+
+// Convert the MouseEvent position to the target clip space.
+// From: https://stackoverflow.com/a/57899935
+function getClipSpaceMousePosition(
+  evt: MouseEvent,
+  target: HTMLElement
+): m3.Vector2D {
+  // Get CSS position relative to the canvas
+  const rect = target.getBoundingClientRect();
+  const cssX = evt.clientX - rect.left;
+  const cssY = evt.clientY - rect.top;
+
+  // Convert CSS position to normalized position relative to the canvas
+  const normalizedX = cssX / rect.width;
+  const normalizedY = cssY / rect.height;
+
+  // Convert normalized position to the clip space
+  const clipX = normalizedX * 2 - 1;
+  const clipY = normalizedY * -2 + 1;
+
+  return [clipX, clipY];
 }
 
 function Preview(props: { imageData: ImageData | null }) {
@@ -114,8 +136,21 @@ function Preview(props: { imageData: ImageData | null }) {
     const canvas = canvasRef.current;
 
     const handleCanvasMouseMove = (evt: MouseEvent) => {
-      const { clientX, clientY } = evt;
-      setMousePosition([clientX, clientY]);
+      const clipSpaceMousePosition = getClipSpaceMousePosition(evt, canvas);
+      const viewProjectionMatrix = getViewProjectionMatrix(canvas, camera);
+
+      // Transform the clip space mouse position to the world position using the inverse
+      // transformation for the view projection matrix.
+      const woldMousePosition = m3.transformVector2D(
+        m3.inverse(viewProjectionMatrix),
+        clipSpaceMousePosition
+      );
+
+      // Convert the world position from floating points to integers.
+      setMousePosition([
+        Math.round(woldMousePosition[0]),
+        Math.round(woldMousePosition[1]),
+      ]);
     };
 
     const handleCanvasScroll = (evt: MouseWheelEvent) => {
@@ -173,8 +208,10 @@ function Preview(props: { imageData: ImageData | null }) {
   };
 
   const fitToPreview = () => {
-    if (imageData && canvasRef.current) {
-      const camera = getInitialCamera(imageData, canvasRef.current);
+    const canvas = canvasRef.current;
+
+    if (imageData !== null && canvas !== null) {
+      const camera = fitCameraToContent(imageData, canvas);
       setCamera(camera);
     } else {
       fitToContent();
@@ -220,17 +257,15 @@ function Preview(props: { imageData: ImageData | null }) {
         ></canvas>
       </View>
 
-      {isInfoVisible &&
-        ((
-          <View
-            padding="size-100"
-            borderColor="gray-700"
-            borderTopWidth="thin"
-            overflow="hidden"
-          >
-            <InformationPanel position={mousePosition} imageData={imageData} />
-          </View>
-        ) as any)}
+      <View
+        padding="size-100"
+        borderColor="gray-700"
+        borderTopWidth="thin"
+        overflow="hidden"
+        isHidden={!isInfoVisible}
+      >
+        <InformationPanel position={mousePosition} imageData={imageData} />
+      </View>
     </Flex>
   );
 }

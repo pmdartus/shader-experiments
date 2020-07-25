@@ -8,14 +8,11 @@ import { Position } from "./types";
 const UNIT8_MAX = 255;
 const BLACK_COLOR: ColorRgba = [0, 0, 0, 0];
 
-function getPixelAt(
-  imageData: ImageData,
-  position: [number, number]
-): ColorRgba {
-  const { data, width } = imageData;
-  const offset = position[1] * (width * 4) + position[0] * 4;
+function getPixelAt(imageData: ImageData, [x, y]: [number, number]): ColorRgba {
+  const { data, width, height } = imageData;
+  const offset = y * (width * 4) + x * 4;
 
-  return offset < data.length
+  return x >= 0 && x <= width && y >= 0 && y <= height
     ? [data[offset], data[offset + 1], data[offset + 2], data[offset + 3]]
     : BLACK_COLOR;
 }
@@ -45,7 +42,7 @@ function getPixelData(position: [number, number], imageData: ImageData | null) {
           ? `X: ${position[0]} / ${(position[0] / imageData.width).toFixed(2)}`
           : `X: 0 / 0`,
         y: imageData
-          ? `X: ${position[1]} / ${(position[1] / imageData.height).toFixed(2)}`
+          ? `Y: ${position[1]} / ${(position[1] / imageData.height).toFixed(2)}`
           : `Y: 0 / 0`,
       },
     },

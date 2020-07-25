@@ -5,6 +5,8 @@ export type M3 = [
   number, number, number
 ];
 
+export type Vector2D = [number, number];
+
 export function identity(): M3 {
   return [1, 0, 0, 0, 1, 0, 0, 0, 1];
 }
@@ -98,6 +100,15 @@ export function inverse(m: M3): M3 {
     d * (m[1 * 3 + 0] * m[2 * 3 + 1] - m[1 * 3 + 1] * m[2 * 3 + 0]),
     -d * (m[0 * 3 + 0] * m[2 * 3 + 1] - m[0 * 3 + 1] * m[2 * 3 + 0]),
     d * (m[0 * 3 + 0] * m[1 * 3 + 1] - m[0 * 3 + 1] * m[1 * 3 + 0]),
+  ];
+}
+
+export function transformVector2D(m: M3, v: Vector2D): Vector2D {
+  const [v0, v1] = v;
+  const d = v0 * m[0 * 3 + 2] + v1 * m[1 * 3 + 2] + m[2 * 3 + 2];
+  return [
+    (v0 * m[0 * 3 + 0] + v1 * m[1 * 3 + 0] + m[2 * 3 + 0]) / d,
+    (v0 * m[0 * 3 + 1] + v1 * m[1 * 3 + 1] + m[2 * 3 + 1]) / d,
   ];
 }
 
