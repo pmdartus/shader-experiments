@@ -1,5 +1,5 @@
-import * as m3 from "../utils/m3";
-import { createShader, createProgram } from "../webgl/shader";
+import * as m3 from "../../utils/m3";
+import { createShader, createProgram } from "../../webgl/shader";
 
 import { DISPLAY_CHANNELS } from "./constants";
 import { ColorChannel } from "./types";

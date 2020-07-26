@@ -6,7 +6,7 @@ import { ActionBar } from "./ActionBar";
 import { InformationPanel } from "./InformationPanel";
 import { PreviewRenderer } from "./renderer";
 
-import * as m3 from "../utils/m3";
+import * as m3 from "../../utils/m3";
 import { Camera, Position, ColorChannel } from "./types";
 
 function getProjectionMatrix(canvas: HTMLCanvasElement): m3.M3 {

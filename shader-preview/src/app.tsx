@@ -1,9 +1,19 @@
 import React, { useState, useEffect } from "react";
 import { Provider, defaultTheme, View } from "@adobe/react-spectrum";
 
-import Preview from "./preview";
+import Preview from "./ui/preview";
+import PropertyEditor from "./ui/property-editor";
+import { Property } from "./ui/property-editor/PropertyEditor";
 
 const IMAGE_URL = process.env.PUBLIC_URL + "/texture-ground-seamless.jpg";
+const PROPERTIES: Property[] = [
+  {
+    type: "boolean",
+    name: "bool-prop",
+    label: "Boolean property",
+    value: true,
+  },
+];
 
 function loadImageData(url: string): Promise<ImageData> {
   const image = new Image();
@@ -50,6 +60,14 @@ export default function App() {
           height="size-6000"
         >
           <Preview imageData={imageData} />
+        </View>
+        <View
+          borderColor="gray-700"
+          borderWidth="thin"
+          width="size-6000"
+          height="size-6000"
+        >
+          <PropertyEditor properties={PROPERTIES} />
         </View>
       </View>
     </Provider>

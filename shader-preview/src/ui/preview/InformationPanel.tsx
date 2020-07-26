@@ -2,7 +2,7 @@ import React from "react";
 
 import { Flex, View, Heading, Divider } from "@adobe/react-spectrum";
 
-import { ColorRgba, rgbaToHex, rgbaToHsl } from "../utils/color";
+import { ColorRgba, rgbaToHex, rgbaToHsl } from "../../utils/color";
 import { Position } from "./types";
 
 const UNIT8_MAX = 255;
