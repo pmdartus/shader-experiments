@@ -8,7 +8,6 @@ import {
   TextField,
   Flex,
 } from "@adobe/react-spectrum";
-
 import InfoIcon from "@spectrum-icons/workflow/Info";
 import TilingIcon from "@spectrum-icons/workflow/ClassicGridView";
 import FullScreenIcon from "@spectrum-icons/workflow/FullScreen";

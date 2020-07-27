@@ -50,9 +50,9 @@
     }
   },
   "lint-staged": {
-   "src/**/*.{ts,tsx,css}": [
+    "src/**/*.{ts,tsx,css}": [
       "eslint --fix",
       "prettier --write"
-   ]
- }
+    ]
+  }
 }

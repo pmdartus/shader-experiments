@@ -1,14 +1,16 @@
+import { GraphNodeDefinition } from "../types";
+
 const FRAGMENT_SHADER = `#version 300 es
 
 precision mediump float;
 
 uniform int u_tiling;
 
-in vec2 v_textcoord;
+in vec2 v_texCoord;
 out vec4 o_color;
 
 void main() {
-    vec2 grid = fract(v_textcoord * vec2(u_tiling));
+    vec2 grid = fract(v_texCoord * vec2(u_tiling));
     
     vec2 tile = step(grid, vec2(.5));
     float val = tile.x == tile.y ? 1.0 : 0.0;
@@ -16,11 +18,11 @@ void main() {
     o_color = vec4(vec3(val), 1.0);
 }`;
 
-export default {
+const checker: GraphNodeDefinition = {
   name: "checker",
   label: "Checker",
   shader: FRAGMENT_SHADER,
-  props: {
+  properties: {
     tiling: {
       label: "Tiling",
       type: "int",
@@ -31,3 +33,5 @@ export default {
     },
   },
 };
+
+export default checker;

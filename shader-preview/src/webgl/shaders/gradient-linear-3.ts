@@ -1,3 +1,5 @@
+import { GraphNodeDefinition } from "../types";
+
 const FRAGMENT_SHADER = `#version 300 es
 
 precision mediump float;
@@ -5,11 +7,11 @@ precision mediump float;
 uniform int u_tiling;
 uniform float u_postion;
 
-in vec2 v_textcoord;
+in vec2 v_texCoord;
 out vec4 o_color;
 
 void main() {
-    vec2 tile = fract(v_textcoord * vec2(u_tiling));
+    vec2 tile = fract(v_texCoord * vec2(u_tiling));
     float val = tile.x < u_postion ? 
         smoothstep(0.0, 1.0, u_postion - tile.x) : 
         smoothstep(1.0, 0.0, tile.x - u_postion);
@@ -17,11 +19,11 @@ void main() {
     o_color = vec4(vec3(val), 1.0);
 }`;
 
-export default {
-  name: "linear-gradient-2",
-  label: "Linear Gradient 2",
+const linearGradient3: GraphNodeDefinition = {
+  name: "linear-gradient-3",
+  label: "Linear Gradient 3",
   shader: FRAGMENT_SHADER,
-  props: {
+  properties: {
     tiling: {
       label: "Tiling",
       type: "int",
@@ -40,3 +42,5 @@ export default {
     },
   },
 };
+
+export default linearGradient3;

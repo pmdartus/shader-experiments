@@ -1,3 +1,5 @@
+import { GraphNodeDefinition } from "../types";
+
 const FRAGMENT_SHADER = `#version 300 es
 
 precision mediump float;
@@ -6,7 +8,7 @@ uniform int u_tiling;
 uniform float u_edgesmoothness;
 uniform float u_intersectionwidth;
 
-in vec2 v_textcoord;
+in vec2 v_texCoord;
 out vec4 o_color;
 
 float brick(vec2 pos) {
@@ -37,17 +39,17 @@ vec2 tile(vec2 pos) {
 }
 
 void main() {
-    vec2 pos = tile(v_textcoord);
+    vec2 pos = tile(v_texCoord);
     float color = brick(pos);
 
     o_color = vec4(vec3(color), 1.0);
 }`;
 
-export default {
+const brick: GraphNodeDefinition = {
   name: "brick",
   label: "Brick",
   shader: FRAGMENT_SHADER,
-  props: {
+  properties: {
     tiling: {
       label: "Tiling",
       type: "int",
@@ -74,3 +76,5 @@ export default {
     },
   },
 };
+
+export default brick;

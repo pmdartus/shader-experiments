@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from "react";
-import { Provider, defaultTheme, View } from "@adobe/react-spectrum";
+import { Provider, defaultTheme, View, Grid } from "@adobe/react-spectrum";
 
-import Preview from "./ui/preview";
-import PropertyEditor from "./ui/property-editor";
-import { Property } from "./ui/property-editor/PropertyEditor";
+import Preview from "./ui/Preview";
+import PropertyEditor from "./ui/PropertyEditor";
+import NodeEditor from "./ui/NodeEditor";
+
+import { Property } from "./ui/PropertyEditor/PropertyEditor";
 
 const IMAGE_URL = process.env.PUBLIC_URL + "/texture-ground-seamless.jpg";
 const PROPERTIES: Property[] = [
@@ -41,6 +43,14 @@ function loadImageData(url: string): Promise<ImageData> {
   });
 }
 
+function GridView(props: { gridArea: string; children: React.ReactElement }) {
+  return (
+    <View gridArea={props.gridArea} borderWidth="thin" borderColor="dark">
+      {props.children}
+    </View>
+  );
+}
+
 export default function App() {
   const [imageData, setImageData] = useState<ImageData | null>(null);
 
@@ -52,24 +62,24 @@ export default function App() {
 
   return (
     <Provider theme={defaultTheme}>
-      <View width="100vw" height="100vh">
-        <View
-          borderColor="gray-700"
-          borderWidth="thin"
-          width="size-6000"
-          height="size-6000"
-        >
+      <Grid
+        areas={["node-editor  property-editor", "preview property-editor"]}
+        columns={["3fr", "1fr"]}
+        rows={["1fr", "1fr"]}
+        height="100vh"
+        width="100vw"
+        gap="size-100"
+      >
+        <GridView gridArea="node-editor">
+          <NodeEditor />
+        </GridView>
+        <GridView gridArea="preview">
           <Preview imageData={imageData} />
-        </View>
-        <View
-          borderColor="gray-700"
-          borderWidth="thin"
-          width="size-6000"
-          height="size-6000"
-        >
+        </GridView>
+        <GridView gridArea="property-editor">
           <PropertyEditor properties={PROPERTIES} />
-        </View>
-      </View>
+        </GridView>
+      </Grid>
     </Provider>
   );
 }
