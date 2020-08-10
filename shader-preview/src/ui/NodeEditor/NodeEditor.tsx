@@ -40,8 +40,6 @@ export default function NodeEditor() {
         });
       })
       .then((res) => {
-        console.log(res);
-
         const imageData = new ImageData(
           new Uint8ClampedArray(res.result),
           WORKFLOW_SIZE
