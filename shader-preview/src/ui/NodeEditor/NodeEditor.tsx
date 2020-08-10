@@ -1,4 +1,4 @@
-import React, { useRef } from "react";
+import React, { useState, useEffect } from "react";
 
 import {
   MenuTrigger,
@@ -6,68 +6,124 @@ import {
   Menu,
   Item,
   View,
+  Flex,
 } from "@adobe/react-spectrum";
 
-import * as definitions from "../../webgl/shaders";
-import { WorkerProxy } from "../../webgl/woker-proxy";
+import * as graph from "../../core/graph";
+import * as definitions from "../../core/shaders";
 
-const WORKFLOW_SIZE = 512;
+import GraphNode from "./GraphNode";
+
+// import { WorkerProxy } from "../../core/woker-proxy";
+// const WORKFLOW_SIZE = 512;
+// const handleAddShader = (name: keyof typeof definitions) => {
+//   const worker = new WorkerProxy();
+
+//   const definition = definitions[name];
+
+//   worker
+//     .compileShader({
+//       name: definition.name,
+//       src: definition.shader,
+//       uniforms: Object.keys(definition.properties).map((prop) => `u_${prop}`),
+//     })
+//     .then((res) => {
+//       return worker.runShader({
+//         id: res.id,
+//         size: WORKFLOW_SIZE,
+//         uniforms: {
+//           u_tiling: {
+//             type: "integer",
+//             value: 2,
+//           },
+//         },
+//       });
+//     })
+//     .then((res) => {
+//       const imageData = new ImageData(
+//         new Uint8ClampedArray(res.result),
+//         WORKFLOW_SIZE
+//       );
+
+//       const canvas = canvasRef.current!;
+//       canvas.width = WORKFLOW_SIZE;
+//       canvas.height = WORKFLOW_SIZE;
+
+//       const ctx = canvas.getContext("2d")!;
+//       ctx.putImageData(imageData, 0, 0);
+//     });
+// };
+
+function createGraph(): graph.Graph {
+  const instance = new graph.Graph();
+
+  instance.register(
+    "test",
+    class extends graph.GraphNode {
+      constructor(config: { graph: graph.Graph }) {
+        super({
+          graph: config.graph,
+          title: "test",
+        });
+      }
+    }
+  );
+
+  return instance;
+}
 
 export default function NodeEditor() {
-  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const [graph] = useState(createGraph);
+  const [nodes, setNodes] = useState(graph.nodes);
 
-  const handleAddShader = (name: keyof typeof definitions) => {
-    const worker = new WorkerProxy();
+  useEffect(() => {
+    const handleNodeChanged = () => {
+      setNodes([...graph.nodes]);
+    };
 
-    const definition = definitions[name];
+    graph.addEventListener("nodecreated", handleNodeChanged);
 
-    worker
-      .compileShader({
-        name: definition.name,
-        src: definition.shader,
-        uniforms: Object.keys(definition.properties).map((prop) => `u_${prop}`),
-      })
-      .then((res) => {
-        return worker.runShader({
-          id: res.id,
-          size: WORKFLOW_SIZE,
-          uniforms: {
-            u_tiling: {
-              type: "integer",
-              value: 2,
-            },
-          },
-        });
-      })
-      .then((res) => {
-        const imageData = new ImageData(
-          new Uint8ClampedArray(res.result),
-          WORKFLOW_SIZE
-        );
+    return () => {
+      graph.removeEventListener("nodecreated", handleNodeChanged);
+    };
+  }, [graph]);
 
-        const canvas = canvasRef.current!;
-        canvas.width = WORKFLOW_SIZE;
-        canvas.height = WORKFLOW_SIZE;
+  const handleAddNode = (name: string) => {
+    graph.createNode(name);
+  };
 
-        const ctx = canvas.getContext("2d")!;
-        ctx.putImageData(imageData, 0, 0);
-      });
+  const handleNodeClick = () => {
+    console.log("TODO: Click");
+  };
+
+  const handleNodeDoubleClick = () => {
+    console.log("TODO: Double Click");
   };
 
   return (
-    <View>
-      <MenuTrigger>
-        <ActionButton>Add shader</ActionButton>
-        <Menu
-          onAction={(key) => handleAddShader(key as keyof typeof definitions)}
-        >
-          {Object.entries(definitions).map(([name, shader]) => (
-            <Item key={name}>{shader.label}</Item>
-          ))}
-        </Menu>
-      </MenuTrigger>
+    <Flex height="100%" direction="column">
+      <View padding="size-50" borderColor="gray-700" borderBottomWidth="thin">
+        <MenuTrigger>
+          <ActionButton>Add Node</ActionButton>
+          <Menu onAction={(key) => handleAddNode(key as string)}>
+            {[...graph.registry.keys()].map((name) => (
+              <Item key={name}>{name}</Item>
+            ))}
+          </Menu>
+        </MenuTrigger>
+      </View>
 
-      <canvas ref={canvasRef} style={{ maxWidth: "100%", maxHeight: "100%" }} />
-    </View>
+      <View flex="1" position="relative" overflow="hidden">
+        {nodes.map((node) => (
+          <GraphNode
+            key={node.id}
+            node={node}
+            selected={true}
+            handleClick={handleNodeClick}
+            handleDoubleClick={handleNodeDoubleClick}
+          />
+        ))}
+      </View>
+    </Flex>
   );
 }

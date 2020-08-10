@@ -1,3 +1,5 @@
+export type Vec2 = [number, number];
+
 export interface PropertyDefinition {
   type: string;
   label: string;

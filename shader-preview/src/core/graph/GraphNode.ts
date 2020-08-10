@@ -1,3 +1,6 @@
+import { uuid } from "../../utils/uuid";
+import { Vec2 } from "../types";
+
 import Graph from "./Graph";
 import Input from "./Input";
 import Output from "./Output";
@@ -9,18 +12,19 @@ export default class GraphNode {
   graph: Graph;
 
   title: string;
-  position: [number, number] = [0, 0];
+  position: Vec2 = [0, 0];
   inputs = new Map<string, Input>();
   outputs = new Map<string, Output>();
   properties = new Map<string, Property>();
 
-  static lastId = 0;
-
   constructor({ graph, title }: { graph: Graph; title: string }) {
-    // TODO: Use guid
-    this.id = `__${GraphNode.lastId++}`;
+    this.id = uuid();
     this.graph = graph;
     this.title = title;
+  }
+
+  setPosition(position: Vec2) {
+    this.position = position;
   }
 
   getConnections(): Connection[] {

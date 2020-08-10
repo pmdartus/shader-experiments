@@ -3,11 +3,11 @@ import Output from "./Output";
 import GraphNode from "./GraphNode";
 import Connection from "./Connection";
 
-export interface GraphNodeConstructor<T extends GraphNode = GraphNode> {
-  new (): T;
+export interface GraphNodeConstructor {
+  new (config: { graph: Graph }): GraphNode;
 }
 
-export default class Graph {
+export default class Graph extends EventTarget {
   nodes: GraphNode[] = [];
   registry: Map<string, GraphNodeConstructor> = new Map();
 
@@ -25,8 +25,10 @@ export default class Graph {
       throw new Error(`Unknown node name "${name}".`);
     }
 
-    const node = new ctor();
+    const node = new ctor({ graph: this });
     this.nodes.push(node);
+
+    this.dispatchEvent(new CustomEvent("nodecreated", { detail: node }));
 
     return node;
   }
