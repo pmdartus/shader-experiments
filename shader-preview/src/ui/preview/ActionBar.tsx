@@ -14,19 +14,35 @@ import FullScreenIcon from "@spectrum-icons/workflow/FullScreen";
 import FullScreenExitIcon from "@spectrum-icons/workflow/FullScreenExit";
 import LayersIcon from "@spectrum-icons/workflow/Layers";
 
-import { ColorChannel } from "./types";
-import { DISPLAY_CHANNELS, ZOOM_STEP } from "./constants";
+import { ColorChannels } from "../../core/Preview2D";
+
+const ZOOM_STEP = 0.2;
+const COLOR_CHANNEL_LABELS = [
+  {
+    name: ColorChannels.RGB,
+    label: "RGB",
+  },
+  {
+    name: ColorChannels.R,
+    label: "Red",
+  },
+  {
+    name: ColorChannels.G,
+    label: "Green",
+  },
+  {
+    name: ColorChannels.B,
+    label: "Blue",
+  },
+];
 
 function ColorChannelPicker(props: {
-  value: ColorChannel;
-  onChange: (value: ColorChannel) => void;
+  value: ColorChannels;
+  onChange: (value: ColorChannels) => void;
 }) {
   const { value, onChange } = props;
 
   const selectedKeys = [value];
-  const items = Object.entries(DISPLAY_CHANNELS).map(([name, value]) => {
-    return { name, ...value };
-  });
 
   const handleSelectionChange = (selection: string | Set<string | number>) => {
     if (typeof selection === "string") {
@@ -34,7 +50,7 @@ function ColorChannelPicker(props: {
     }
 
     const selected = Array.from(selection)[0];
-    onChange(selected as ColorChannel);
+    onChange(selected as ColorChannels);
   };
 
   return (
@@ -44,7 +60,7 @@ function ColorChannelPicker(props: {
       </ActionButton>
 
       <Menu
-        items={items}
+        items={COLOR_CHANNEL_LABELS}
         selectionMode="single"
         selectedKeys={selectedKeys}
         onSelectionChange={handleSelectionChange}
@@ -118,12 +134,12 @@ function SelectableActionButton(props: {
 }
 
 export function ActionBar(props: {
-  channels: ColorChannel;
+  channels: ColorChannels;
   tiling: boolean;
   infoVisible: boolean;
   zoom: number;
 
-  onChannelsChange: (channels: ColorChannel) => void;
+  onChannelsChange: (channels: ColorChannels) => void;
   onTilingChange: (tiling: boolean) => void;
   onInfoVisibleChange: (infoVisible: boolean) => void;
   onZoomChange: (zoom: number) => void;

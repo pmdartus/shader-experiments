@@ -3,7 +3,6 @@ import React from "react";
 import { Flex, View, Heading, Divider } from "@adobe/react-spectrum";
 
 import { ColorRgba, rgbaToHex, rgbaToHsl } from "../../utils/color";
-import { Position } from "./types";
 
 const UNIT8_MAX = 255;
 const BLACK_COLOR: ColorRgba = [0, 0, 0, 0];
@@ -50,7 +49,7 @@ function getPixelData(position: [number, number], imageData: ImageData | null) {
 }
 
 export function InformationPanel(props: {
-  position: Position;
+  position: [number, number];
   imageData: ImageData | null;
 }) {
   const { position, imageData } = props;
