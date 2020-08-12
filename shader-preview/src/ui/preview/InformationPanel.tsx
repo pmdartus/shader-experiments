@@ -11,7 +11,7 @@ function getPixelAt(imageData: ImageData, [x, y]: [number, number]): ColorRgba {
   const { data, width, height } = imageData;
   const offset = y * (width * 4) + x * 4;
 
-  return x >= 0 && x <= width && y >= 0 && y <= height
+  return x >= 0 && x < width && y >= 0 && y < height
     ? [data[offset], data[offset + 1], data[offset + 2], data[offset + 3]]
     : BLACK_COLOR;
 }

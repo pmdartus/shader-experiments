@@ -1,5 +1,7 @@
 /// <reference types="react-scripts" />
 
+declare var ResizeObserver: any;
+
 declare module "*.glsl" {
   const src: string;
   export default src;

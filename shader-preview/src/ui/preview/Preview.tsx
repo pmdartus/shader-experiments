@@ -13,7 +13,7 @@ function Preview(props: { imageData: ImageData | null }) {
   const [zoom, setZoom] = useState(1);
   const [channels, setChannels] = useState(ColorChannels.RGB);
   const [tiling, setTiling] = useState(false);
-  const [mousePosition, setMousePosition] = useState([0, 0]);
+  const [mousePosition, setMousePosition] = useState<[number, number]>([0, 0]);
   const [isInfoVisible, setIsInfoVisible] = useState(false);
 
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -97,7 +97,7 @@ function Preview(props: { imageData: ImageData | null }) {
         overflow="hidden"
         isHidden={!isInfoVisible}
       >
-        <InformationPanel position={[0, 0]} imageData={imageData} />
+        <InformationPanel position={mousePosition} imageData={imageData} />
       </View>
     </Flex>
   );

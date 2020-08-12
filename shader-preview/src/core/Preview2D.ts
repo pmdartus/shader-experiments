@@ -15,7 +15,7 @@ export default class Preview2D {
   private readonly ctx: CanvasRenderingContext2D;
 
   private image: ImageData | null = null;
-  private pattern: CanvasPattern | null = null;
+  private transformedImage: OffscreenCanvas | null = null;
   private offset: [number, number] = [0, 0];
   private zoom: number = 1;
   private tiling: boolean = false;
@@ -23,7 +23,7 @@ export default class Preview2D {
 
   private isDirty: boolean = false;
   private isDragging: boolean = false;
-  private isHoveringImage: boolean = false;
+  private isHovering: boolean = false;
   private handlers: PreviewHandlers = {
     mouseMoved: () => {},
     zoomChanged: () => {},
@@ -38,6 +38,7 @@ export default class Preview2D {
     };
 
     this.resizeCanvas();
+    this.observeCanvasResize();
     this.addEventHandlers();
     this.markDirty();
   }
@@ -45,6 +46,7 @@ export default class Preview2D {
   setImage(image: ImageData | null) {
     this.image = image;
 
+    this.fitToPreview();
     this.updateTransformedImage();
     this.markDirty();
   }
@@ -73,12 +75,26 @@ export default class Preview2D {
   }
 
   fitToPreview() {
-    this.setOffset([0, 0]);
+    const { image, canvas, zoom } = this;
+    let offset: [number, number] = [0, 0];
+
+    if (image !== null) {
+      const { width: imageWidth, height: imageHeight } = image;
+      const { width: canvasWidth, height: canvasHeight } = canvas;
+
+      offset = [
+        canvasWidth / zoom / 2 - imageWidth / 2,
+        canvasHeight / zoom / 2 - imageHeight / 2,
+      ];
+    }
+
+    this.setOffset(offset);
     this.setZoom(1);
   }
 
   fitToContent() {
     const { image, canvas } = this;
+    let offset: [number, number] = [0, 0];
     let zoom = 1;
 
     if (image !== null) {
@@ -86,23 +102,27 @@ export default class Preview2D {
       const { width: canvasWidth, height: canvasHeight } = canvas;
 
       zoom = Math.min(canvasWidth / imageWidth, canvasHeight / imageHeight);
+      offset = [
+        canvasWidth / zoom / 2 - imageWidth / 2,
+        canvasHeight / zoom / 2 - imageHeight / 2,
+      ];
     }
 
-    this.setOffset([0, 0]);
+    this.setOffset(offset);
     this.setZoom(zoom);
   }
 
   private updateTransformedImage() {
     const { ctx, image, colorChannels } = this;
-    let pattern: CanvasPattern | null = null;
+    let transformedImage: OffscreenCanvas | null = null;
 
     if (image !== null) {
-      let transformedImage: ImageData;
+      let transformed: ImageData;
 
       if (colorChannels === ColorChannels.RGB) {
-        transformedImage = image;
+        transformed = image;
       } else {
-        transformedImage = ctx.createImageData(image);
+        transformed = ctx.createImageData(image);
 
         for (let i = 0; i < image.data.length; i += 4) {
           let value: number;
@@ -114,29 +134,27 @@ export default class Preview2D {
             value = image.data[i + 2];
           }
 
-          transformedImage.data[i] = value;
-          transformedImage.data[i + 1] = value;
-          transformedImage.data[i + 2] = value;
-          transformedImage.data[i + 3] = image.data[i + 3];
+          transformed.data[i] = value;
+          transformed.data[i + 1] = value;
+          transformed.data[i + 2] = value;
+          transformed.data[i + 3] = image.data[i + 3];
         }
       }
 
-      const canvasPattern = new OffscreenCanvas(
-        transformedImage.width,
-        transformedImage.height
+      transformedImage = new OffscreenCanvas(
+        transformed.width,
+        transformed.height
       );
-      const patternCtx = canvasPattern.getContext("2d")!;
-      patternCtx.putImageData(transformedImage, 0, 0);
-
-      pattern = ctx.createPattern(canvasPattern, "repeat")!;
+      const canvasCtx = transformedImage.getContext("2d")!;
+      canvasCtx.putImageData(transformed, 0, 0);
     }
 
-    this.pattern = pattern;
+    this.transformedImage = transformedImage;
   }
 
-  private setIsHoveringImage(isHoveringImage: boolean) {
-    if (isHoveringImage !== this.isHoveringImage) {
-      this.isHoveringImage = isHoveringImage;
+  private setIsHovering(isHovering: boolean) {
+    if (isHovering !== this.isHovering) {
+      this.isHovering = isHovering;
       this.markDirty();
     }
   }
@@ -156,60 +174,106 @@ export default class Preview2D {
     canvas.height = height;
   }
 
+  private observeCanvasResize() {
+    const resizeObserver = new ResizeObserver(() => {
+      const { canvas, offset } = this;
+
+      const originalCenter = this.getPreviewPosition([
+        canvas.width / 2,
+        canvas.height / 2,
+      ]);
+
+      this.resizeCanvas();
+
+      const updatedCenter = this.getPreviewPosition([
+        canvas.width / 2,
+        canvas.height / 2,
+      ]);
+
+      // Readjust the offset by keeping the center point of the preview at the center after the
+      // resize.
+      this.setOffset([
+        offset[0] + (updatedCenter[0] - originalCenter[0]),
+        offset[1] + (updatedCenter[1] - originalCenter[1]),
+      ]);
+
+      // Directly invoke draw instead of markDirty to avoid running into flickering issue after the
+      // width and the height of the canvas has been adjusted.
+      this.draw();
+    });
+
+    resizeObserver.observe(this.canvas);
+  }
+
   private addEventHandlers() {
     const { canvas } = this;
 
     canvas.addEventListener("wheel", (evt: WheelEvent) =>
       this.handleMouseWheel(evt)
     );
-    canvas.addEventListener("mousemove", (evt: MouseEvent) =>
-      this.handleMouseMove(evt)
-    );
-    canvas.addEventListener("mouseout", (evt: MouseEvent) =>
-      this.handleMouseOut()
-    );
     canvas.addEventListener("mousedown", (evt: MouseEvent) =>
       this.handleMouseDown(evt)
     );
+    canvas.addEventListener("mousemove", (evt: MouseEvent) =>
+      this.handleMouseMove(evt)
+    );
+    canvas.addEventListener("mouseenter", () => this.handleMouseEnter());
+    canvas.addEventListener("mouseout", () => this.handleMouseOut());
   }
 
   private handleMouseWheel(evt: WheelEvent) {
     evt.preventDefault();
     evt.stopPropagation();
 
+    const { offset } = this;
+    const { offsetX, offsetY } = evt;
+
+    const originalMousePosition = this.getPreviewPosition([offsetX, offsetY]);
+
     // https://stackoverflow.com/a/57899935
     // Make zoom change proportionate to the current zoom level.
-    this.setZoom(this.zoom * Math.pow(2, evt.deltaY * -0.01));
+    const updatedZoom = this.zoom * Math.pow(2, evt.deltaY * -0.01);
+    this.setZoom(updatedZoom);
+
+    const updatedMousePosition = this.getPreviewPosition([offsetX, offsetY]);
+
+    this.setOffset([
+      offset[0] + (updatedMousePosition[0] - originalMousePosition[0]),
+      offset[1] + (updatedMousePosition[1] - originalMousePosition[1]),
+    ]);
   }
 
   private handleMouseMove(evt: MouseEvent) {
-    const { image, offset, zoom } = this;
     const { offsetX, offsetY } = evt;
+    const { isDragging } = this;
 
-    if (image === null) {
+    if (isDragging) {
       return;
     }
 
-    const isHoveringImage =
-      offsetX >= 0 &&
-      offsetX < image.width &&
-      offsetY >= 0 &&
-      offsetY < image.height;
-    this.setIsHoveringImage(isHoveringImage);
+    const previewPosition = this.getPreviewPosition([offsetX, offsetY]);
+    this.handlers.mouseMoved(previewPosition);
+  }
+
+  private handleMouseEnter() {
+    this.setIsHovering(true);
   }
 
   private handleMouseOut() {
-    this.setIsHoveringImage(false);
+    this.setIsHovering(false);
   }
 
   private handleMouseDown(evt: MouseEvent) {
     this.isDragging = true;
 
     const handleWindowMouseMove = (evt: MouseEvent) => {
-      const [x, y] = this.offset;
+      const {
+        zoom,
+        offset: [x, y],
+      } = this;
       const { movementX, movementY } = evt;
 
-      this.setOffset([x + movementX, y + movementY]);
+      this.setOffset([x + movementX / zoom, y + movementY / zoom]);
     };
 
     const handleWindowMouseUp = (evt: MouseEvent) => {
@@ -217,10 +281,23 @@ export default class Preview2D {
 
       window.removeEventListener("mousemove", handleWindowMouseMove);
       window.removeEventListener("mouseup", handleWindowMouseUp);
+
+      this.markDirty();
     };
 
     window.addEventListener("mousemove", handleWindowMouseMove);
     window.addEventListener("mouseup", handleWindowMouseUp);
+  }
+
+  private getPreviewPosition(
+    canvasPosition: [number, number]
+  ): [number, number] {
+    const { zoom, offset } = this;
+
+    return [
+      Math.floor(canvasPosition[0] / zoom - offset[0]),
+      Math.floor(canvasPosition[1] / zoom - offset[1]),
+    ];
   }
 
   private markDirty() {
@@ -239,13 +316,12 @@ export default class Preview2D {
     const {
       canvas,
       ctx,
-      image,
-      pattern,
       offset,
       zoom,
       tiling,
       isDragging,
-      isHoveringImage,
+      isHovering,
+      transformedImage: image,
     } = this;
 
     ctx.setTransform(1, 0, 0, 1, 0, 0);
@@ -254,38 +330,29 @@ export default class Preview2D {
     ctx.fillStyle = "rgb(50, 50, 50)";
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-    if (image === null || pattern === null) {
+    if (image === null) {
       return;
     }
 
-    ctx.translate(canvas.width / 2 + offset[0], canvas.height / 2 + offset[1]);
     ctx.scale(zoom, zoom);
+    ctx.translate(offset[0], offset[1]);
 
-    // const matrix = new DOMMatrix();
-    // pattern.setTransform(matrix);
-    ctx.fillStyle = pattern;
+    if (tiling === true) {
+      // TODO: Avoid rendering a fixed amount of tiles and prefer only rendering the number of tiles
+      // needed for the viewport.
+      for (let i = -10; i < 10; i++) {
+        for (let j = -10; j < 10; j++) {
+          ctx.drawImage(image, i * image.width, j * image.height);
+        }
+      }
 
-    if (tiling) {
-      ctx.setTransform(1, 0, 0, 1, 0, 0);
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      if (isDragging === false && isHovering === true) {
+        ctx.strokeStyle = "red";
+        ctx.lineWidth = 2;
+        ctx.strokeRect(0, 0, image.width, image.height);
+      }
     } else {
-      ctx.fillRect(
-        -image.width / 2,
-        -image.height / 2,
-        image.width,
-        image.height
-      );
-    }
-
-    if (isHoveringImage === true && isDragging === false) {
-      ctx.strokeStyle = "red";
-      ctx.lineWidth = 2;
-      ctx.strokeRect(
-        -image.width / 2,
-        -image.height / 2,
-        image.width,
-        image.height
-      );
+      ctx.drawImage(image, 0, 0);
     }
   }
 }
