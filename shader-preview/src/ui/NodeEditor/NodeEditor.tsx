@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 
 import {
   MenuTrigger,
@@ -10,94 +10,57 @@ import {
 } from "@adobe/react-spectrum";
 
 import * as graph from "../../core/graph";
-import * as definitions from "../../core/shaders";
-
-import GraphNode from "./GraphNode";
-
-// import { WorkerProxy } from "../../core/woker-proxy";
-// const WORKFLOW_SIZE = 512;
-// const handleAddShader = (name: keyof typeof definitions) => {
-//   const worker = new WorkerProxy();
-
-//   const definition = definitions[name];
-
-//   worker
-//     .compileShader({
-//       name: definition.name,
-//       src: definition.shader,
-//       uniforms: Object.keys(definition.properties).map((prop) => `u_${prop}`),
-//     })
-//     .then((res) => {
-//       return worker.runShader({
-//         id: res.id,
-//         size: WORKFLOW_SIZE,
-//         uniforms: {
-//           u_tiling: {
-//             type: "integer",
-//             value: 2,
-//           },
-//         },
-//       });
-//     })
-//     .then((res) => {
-//       const imageData = new ImageData(
-//         new Uint8ClampedArray(res.result),
-//         WORKFLOW_SIZE
-//       );
-
-//       const canvas = canvasRef.current!;
-//       canvas.width = WORKFLOW_SIZE;
-//       canvas.height = WORKFLOW_SIZE;
-
-//       const ctx = canvas.getContext("2d")!;
-//       ctx.putImageData(imageData, 0, 0);
-//     });
-// };
+import GraphEditor from "../../core/GraphEditor";
+import * as shaderDefinitions from "../../core/shaders";
 
 function createGraph(): graph.Graph {
   const instance = new graph.Graph();
 
-  instance.register(
-    "test",
-    class extends graph.GraphNode {
+  for (const definition of Object.values(shaderDefinitions)) {
+    const nodeConstructor = class extends graph.GraphNode {
       constructor(config: { graph: graph.Graph }) {
         super({
           graph: config.graph,
-          title: "test",
+          title: definition.label,
+        });
+
+        this.createOutput({
+          name: "output",
+          type: "image",
+          value: null,
         });
       }
-    }
-  );
+    };
+
+    instance.register(definition.label, nodeConstructor);
+  }
+
+  const node1 = instance.createNode(shaderDefinitions.brick.label);
+  node1.setPosition([200, 150]);
+
+  const node2 = instance.createNode(shaderDefinitions.checker.label);
+  node2.setPosition([100, 0]);
 
   return instance;
 }
 
 export default function NodeEditor() {
   const [graph] = useState(createGraph);
-  const [nodes, setNodes] = useState(graph.nodes);
+
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const graphEditorRef = useRef<GraphEditor>();
 
   useEffect(() => {
-    const handleNodeChanged = () => {
-      setNodes([...graph.nodes]);
-    };
+    const canvas = canvasRef.current;
+    if (canvas === null) {
+      return;
+    }
 
-    graph.addEventListener("nodecreated", handleNodeChanged);
-
-    return () => {
-      graph.removeEventListener("nodecreated", handleNodeChanged);
-    };
+    graphEditorRef.current = new GraphEditor(canvas, graph);
   }, [graph]);
 
   const handleAddNode = (name: string) => {
     graph.createNode(name);
-  };
-
-  const handleNodeClick = () => {
-    console.log("TODO: Click");
-  };
-
-  const handleNodeDoubleClick = () => {
-    console.log("TODO: Double Click");
   };
 
   return (
@@ -113,16 +76,14 @@ export default function NodeEditor() {
         </MenuTrigger>
       </View>
 
-      <View flex="1" position="relative" overflow="hidden">
-        {nodes.map((node) => (
-          <GraphNode
-            key={node.id}
-            node={node}
-            selected={true}
-            handleClick={handleNodeClick}
-            handleDoubleClick={handleNodeDoubleClick}
-          />
-        ))}
+      <View flex="1">
+        <canvas
+          ref={canvasRef}
+          style={{
+            width: "100%",
+            height: "100%",
+          }}
+        ></canvas>
       </View>
     </Flex>
   );

@@ -1,3 +1,5 @@
+import GraphEditor from "../GraphEditor";
+
 import Input from "./Input";
 import Output from "./Output";
 import GraphNode from "./GraphNode";
@@ -48,5 +50,11 @@ export default class Graph extends EventTarget {
 
   connect({ from, to }: { from: Output; to: Input }): Connection {
     return from.connectTo(to);
+  }
+
+  draw(ctx: CanvasRenderingContext2D, editor: GraphEditor) {
+    for (const node of this.nodes) {
+      node.draw(ctx, editor);
+    }
   }
 }

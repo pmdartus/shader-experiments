@@ -1,3 +1,5 @@
+import GraphEditor from "../GraphEditor";
+
 import Connection from "./Connection";
 
 export default class Input<T = unknown> {
@@ -28,4 +30,6 @@ export default class Input<T = unknown> {
     this.connection = null;
     connection.from.removeConnection(connection);
   }
+
+  draw(ctx: CanvasRenderingContext2D, editor: GraphEditor) {}
 }
