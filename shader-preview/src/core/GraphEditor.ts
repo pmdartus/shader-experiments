@@ -86,22 +86,32 @@ export default class GraphEditor {
   }
 
   private handleGraphSelect(evt: MouseEvent) {
-    const originalMousePosition = this.getScenePosition([
-      evt.offsetX,
-      evt.offsetY,
-    ]);
+    const initialPosition = this.getScenePosition([evt.offsetX, evt.offsetY]);
 
     this.state = EditorState.Selecting;
-    this.selection = new Set();
+    this.selection = new Set([]);
     this.selectionRect = null;
 
+    const nodeUnderMouse = [...this.graph.nodes]
+      .reverse()
+      .find((node) => node.isUnder(initialPosition));
+    if (nodeUnderMouse !== undefined) {
+      this.selection.add(nodeUnderMouse);
+    }
+
     const handleMouseMove = (evt: MouseEvent) => {
-      const currentMousePosition = this.getScenePosition([
+      const [xInitial, yInitial] = initialPosition;
+      const [xCurrent, yCurrent] = this.getScenePosition([
         evt.offsetX,
         evt.offsetY,
       ]);
 
-      this.selectionRect = [...originalMousePosition, ...currentMousePosition];
+      this.selectionRect = [
+        xInitial,
+        yInitial,
+        xCurrent - xInitial,
+        yCurrent - yInitial,
+      ];
       this.markDirty();
     };
 
@@ -216,9 +226,7 @@ export default class GraphEditor {
 
     if (selectionRect !== null) {
       ctx.fillStyle = SELECTION_RECT_FILL_STYLE;
-
-      const [x1, y1, x2, y2] = selectionRect;
-      ctx.fillRect(x1, y1, x2 - x1, y2 - y1);
+      ctx.fillRect(...selectionRect);
     }
 
     graph.draw(ctx, this);

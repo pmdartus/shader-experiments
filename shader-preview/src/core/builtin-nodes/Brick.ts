@@ -1,4 +1,10 @@
-import { GraphNodeDefinition } from "../types";
+import {
+  GraphNode,
+  GraphNodeConfig,
+  IntProperty,
+  FloatProperty,
+  IOType,
+} from "../graph";
 
 const FRAGMENT_SHADER = `#version 300 es
 
@@ -45,36 +51,54 @@ void main() {
     o_color = vec4(vec3(color), 1.0);
 }`;
 
-const brick: GraphNodeDefinition = {
-  name: "brick",
-  label: "Brick",
-  shader: FRAGMENT_SHADER,
-  properties: {
-    tiling: {
-      label: "Tiling",
-      type: "int",
-      default: 2,
-      min: 1,
-      max: 16,
-      step: 1,
-    },
-    edgesmoothness: {
-      label: "Edge Smoothness",
-      type: "float",
-      default: 0,
-      min: 0,
-      max: 1,
-      step: 0.01,
-    },
-    intersectionwidth: {
-      label: "Intersection Width",
-      type: "float",
-      default: 0.1,
-      min: 0,
-      max: 1,
-      step: 0.01,
-    },
-  },
-};
+export default class Brick extends GraphNode {
+  constructor(config: Omit<GraphNodeConfig, "title">) {
+    super({
+      ...config,
+      title: "Brick",
+    });
 
-export default brick;
+    this.addProperty(
+      new IntProperty({
+        name: "tiling",
+        label: "Tiling",
+        value: 1,
+        min: 1,
+        max: 16,
+        step: 1,
+        node: this,
+      })
+    );
+    this.addProperty(
+      new FloatProperty({
+        name: "edgesmoothness",
+        label: "Edge Smoothness",
+        value: 0,
+        min: 0,
+        max: 1,
+        step: 0.01,
+        node: this,
+      })
+    );
+    this.addProperty(
+      new FloatProperty({
+        name: "intersectionwidth",
+        label: "Intersection Width",
+        value: 0.1,
+        min: 0,
+        max: 1,
+        step: 0.01,
+        node: this,
+      })
+    );
+
+    this.createOutput({
+      name: "output",
+      type: IOType.GrayScale,
+    });
+  }
+
+  execute() {
+    console.log("Execute", FRAGMENT_SHADER);
+  }
+}

@@ -11,35 +11,25 @@ import {
 
 import * as graph from "../../core/graph";
 import GraphEditor from "../../core/GraphEditor";
-import * as shaderDefinitions from "../../core/shaders";
+import builtinNodes from "../../core/builtin-nodes";
 
 function createGraph(): graph.Graph {
   const instance = new graph.Graph();
 
-  for (const definition of Object.values(shaderDefinitions)) {
-    const nodeConstructor = class extends graph.GraphNode {
-      constructor(config: { graph: graph.Graph }) {
-        super({
-          graph: config.graph,
-          title: definition.label,
-        });
-
-        this.createOutput({
-          name: "output",
-          type: "image",
-          value: null,
-        });
-      }
-    };
-
-    instance.register(definition.label, nodeConstructor);
+  for (const builtin of builtinNodes) {
+    instance.register(builtin.label, builtin.node);
   }
 
-  const node1 = instance.createNode(shaderDefinitions.brick.label);
-  node1.setPosition([200, 150]);
+  const uniform = instance.createNode("Uniform Color");
+  uniform.setPosition([0, 0]);
 
-  const node2 = instance.createNode(shaderDefinitions.checker.label);
-  node2.setPosition([100, 0]);
+  const albedo = instance.createNode("Output");
+  albedo.setPosition([200, 0]);
+
+  instance.connect({
+    from: uniform.getOutput("output")!,
+    to: albedo.getInput("input")!,
+  });
 
   return instance;
 }

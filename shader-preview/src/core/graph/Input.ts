@@ -1,19 +1,11 @@
-import GraphEditor from "../GraphEditor";
-
+import IO from "./IO";
 import Connection from "./Connection";
 
-export default class Input<T = unknown> {
-  readonly type: string;
-  readonly name: string;
+export default class Input extends IO {
   private connection: Connection | null = null;
 
-  constructor({ name, type }: { name: string; type: string }) {
-    this.name = name;
-    this.type = type;
-  }
-
-  getValue(): T {
-    return this.connection?.from.getValue() as T;
+  getValue(): unknown {
+    return this.connection?.from.getValue();
   }
 
   getConnection(): Connection | null {
@@ -30,6 +22,4 @@ export default class Input<T = unknown> {
     this.connection = null;
     connection.from.removeConnection(connection);
   }
-
-  draw(ctx: CanvasRenderingContext2D, editor: GraphEditor) {}
 }

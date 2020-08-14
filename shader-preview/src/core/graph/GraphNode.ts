@@ -6,7 +6,8 @@ import GraphEditor from "../GraphEditor";
 import Graph from "./Graph";
 import Input from "./Input";
 import Output from "./Output";
-import Property from "./Property";
+import { IOConfig } from "./IO";
+import { Property } from "./Property";
 import Connection from "./Connection";
 
 const NODE_WIDTH = 100;
@@ -25,20 +26,29 @@ const TITLE_FONT = "1em sans-serif";
 
 const SOCKET_HEIGHT = 20;
 
-export default class GraphNode {
-  id: string;
+export interface GraphNodeConfig {
   graph: Graph;
-
   title: string;
-  position: Vec2 = [0, 0];
-  inputs = new Map<string, Input>();
-  outputs = new Map<string, Output>();
-  properties = new Map<string, Property>();
+}
 
-  constructor({ graph, title }: { graph: Graph; title: string }) {
+export default class GraphNode {
+  readonly id: string;
+  readonly graph: Graph;
+  readonly title: string;
+
+  private position: Vec2 = [0, 0];
+  private inputs = new Map<string, Input>();
+  private outputs = new Map<string, Output>();
+  private properties = new Map<string, Property>();
+
+  constructor({ graph, title }: GraphNodeConfig) {
     this.id = uuid();
     this.graph = graph;
     this.title = title;
+  }
+
+  getPosition(): Vec2 {
+    return this.position;
   }
 
   setPosition(position: Vec2) {
@@ -57,14 +67,14 @@ export default class GraphNode {
     return [...inputConnections, ...outputConnections];
   }
 
-  createInput<T>(config: { name: string; type: string }): Input<T> {
-    const input = new Input<T>(config);
+  createInput(config: IOConfig): Input {
+    const input = new Input(config);
     this.addInput(input);
     return input;
   }
 
-  createOutput<T>(config: { name: string; type: string; value: T }): Output<T> {
-    const output = new Output<T>(config);
+  createOutput(config: IOConfig): Output {
+    const output = new Output(config);
     this.addOutput(output);
     return output;
   }
@@ -79,8 +89,8 @@ export default class GraphNode {
     this.inputs.set(name, input);
   }
 
-  getInput<T = unknown>(name: string): Input<T> | undefined {
-    return this.inputs.get(name) as Input<T> | undefined;
+  getInput(name: string): Input | undefined {
+    return this.inputs.get(name);
   }
 
   removeInput(input: Input) {
@@ -89,7 +99,7 @@ export default class GraphNode {
     const actualInput = this.inputs.get(name);
     if (input !== actualInput) {
       throw new Error(
-        `Invalid input parameter, input with name ${name} maps to another Input instance.`
+        `Invalid input parameter, input with name "${name}" maps to another Input instance.`
       );
     }
 
@@ -107,8 +117,8 @@ export default class GraphNode {
     this.outputs.set(name, output);
   }
 
-  getOutput<T>(name: string): Output<T> | undefined {
-    return this.outputs.get(name) as Output<T> | undefined;
+  getOutput(name: string): Output | undefined {
+    return this.outputs.get(name);
   }
 
   removeOutput(output: Output) {
@@ -117,12 +127,43 @@ export default class GraphNode {
     const actualOutput = this.outputs.get(name);
     if (output !== actualOutput) {
       throw new Error(
-        `Invalid output parameter, output with name ${name} maps to another Output instance.`
+        `Invalid output parameter, output with name "${name}" maps to another Output instance.`
       );
     }
 
     output.removeConnections();
     this.outputs.delete(output.name);
+  }
+
+  addProperty(property: Property) {
+    const { name } = property;
+
+    if (this.properties.has(name)) {
+      throw new Error(`Property with name "${name}" already exists.`);
+    }
+
+    this.properties.set(name, property);
+  }
+
+  getProperty(name: string): Property | undefined {
+    return this.properties.get(name);
+  }
+
+  removeProperty(property: Property) {
+    const { name } = property;
+
+    const actualProperty = this.properties.get(name);
+    if (property !== actualProperty) {
+      throw new Error(
+        `Invalid property parameter, property with name "${name}" maps to another Property instance.`
+      );
+    }
+
+    this.properties.delete(property.name);
+  }
+
+  markDirty() {
+    console.info("TODO: Handle dirty");
   }
 
   getNodeHeight(): number {
@@ -132,6 +173,19 @@ export default class GraphNode {
       NODE_MIN_HEIGHT,
       inputs.size * SOCKET_HEIGHT,
       outputs.size * SOCKET_HEIGHT
+    );
+  }
+
+  isUnder(target: [number, number]): boolean {
+    const { position } = this;
+    const width = NODE_WIDTH;
+    const height = this.getNodeHeight();
+
+    return (
+      target[0] >= position[0] &&
+      target[0] < position[0] + width &&
+      target[1] >= position[1] &&
+      target[1] < position[1] + height
     );
   }
 

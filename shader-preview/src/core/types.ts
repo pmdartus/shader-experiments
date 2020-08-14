@@ -1,19 +1,5 @@
 export type Vec2 = [number, number];
 
-export interface PropertyDefinition {
-  type: string;
-  label: string;
-
-  [key: string]: unknown;
-}
-
-export interface GraphNodeDefinition {
-  name: string;
-  label: string;
-  shader: string;
-  properties: { [name: string]: PropertyDefinition };
-}
-
 type ShaderId = string;
 
 interface BooleanUniform {

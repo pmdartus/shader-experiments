@@ -1,4 +1,4 @@
-import { GraphNodeDefinition } from "../types";
+import { GraphNode, GraphNodeConfig, Float2Property, IOType } from "../graph";
 
 const FRAGMENT_SHADER = `#version 300 es
 
@@ -36,27 +36,38 @@ void main() {
     o_color = vec4(color, 1.0);
 }`;
 
-const gradientAxial: GraphNodeDefinition = {
-  name: "gradient-axial",
-  label: "Gradient Axial",
-  shader: FRAGMENT_SHADER,
-  properties: {
-    p1: {
-      label: "Point 1",
-      type: "float2",
-      default: [0, 0],
-    },
-    p2: {
-      label: "Point 2",
-      type: "float2",
-      default: [1, 1],
-    },
-    gizmo: {
-      label: "Shadow Gizmo",
-      type: "bool",
-      default: false,
-    },
-  },
-};
+export default class GradientAxial extends GraphNode {
+  constructor(config: Omit<GraphNodeConfig, "title">) {
+    super({
+      ...config,
+      title: "Gradient Axial",
+    });
 
-export default gradientAxial;
+    this.addProperty(
+      new Float2Property({
+        name: "p1",
+        label: "Point 1",
+        value: [0, 0],
+        node: this,
+      })
+    );
+
+    this.addProperty(
+      new Float2Property({
+        name: "p2",
+        label: "Point 2",
+        value: [1, 1],
+        node: this,
+      })
+    );
+
+    this.createOutput({
+      name: "output",
+      type: IOType.GrayScale,
+    });
+  }
+
+  execute() {
+    console.log("Execute", FRAGMENT_SHADER);
+  }
+}

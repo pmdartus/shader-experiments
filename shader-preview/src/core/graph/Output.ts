@@ -1,30 +1,16 @@
-import GraphEditor from "../GraphEditor";
-
-import Connection from "./Connection";
+import IO from "./IO";
 import Input from "./Input";
+import Connection from "./Connection";
 
-const SOCKET_RADIUS = 6;
-const SOCKET_LINE_WIDTH = 6;
-const SOCKET_STROKE_STYLE = "#1e1e1e";
-const SOCKET_FILL_STYLE = "#c8c8c8";
-
-export default class Output<T = unknown> {
-  readonly name: string;
-  readonly type: string;
-  private value: T;
+export default class Output extends IO {
+  private value: unknown | null = null;
   private connections: Connection[] = [];
 
-  constructor({ name, type, value }: { name: string; type: string; value: T }) {
-    this.name = name;
-    this.type = type;
-    this.value = value;
-  }
-
-  getValue(): T {
+  getValue(): unknown | null {
     return this.value;
   }
 
-  setValue(value: T) {
+  setValue(value: unknown) {
     this.value = value;
   }
 
@@ -59,17 +45,5 @@ export default class Output<T = unknown> {
     for (const connection of this.connections) {
       this.removeConnection(connection);
     }
-  }
-
-  draw(ctx: CanvasRenderingContext2D, editor: GraphEditor) {
-    ctx.beginPath();
-    ctx.arc(0, 0, SOCKET_RADIUS, 0, 2 * Math.PI);
-
-    ctx.lineWidth = SOCKET_LINE_WIDTH;
-    ctx.strokeStyle = SOCKET_STROKE_STYLE;
-    ctx.stroke();
-
-    ctx.fillStyle = SOCKET_FILL_STYLE;
-    ctx.fill();
   }
 }
