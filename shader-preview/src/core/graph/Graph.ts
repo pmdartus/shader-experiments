@@ -52,7 +52,18 @@ export default class Graph extends EventTarget {
     return from.connectTo(to);
   }
 
+  getConnections(): readonly Connection[] {
+    return this.nodes.flatMap((node) => {
+      return node.getOutputs().flatMap((output) => output.getConnections());
+    });
+  }
+
   draw(ctx: CanvasRenderingContext2D, editor: GraphEditor) {
+    const connections = this.getConnections();
+    for (const connection of connections) {
+      connection.draw(ctx, editor);
+    }
+
     for (const node of this.nodes) {
       node.draw(ctx, editor);
     }

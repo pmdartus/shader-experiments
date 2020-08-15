@@ -1,4 +1,6 @@
-import { GraphNode } from ".";
+import { Vec2 } from "../types";
+
+import GraphNode from "./GraphNode";
 
 export enum PropertyType {
   bool = "bool",
@@ -124,7 +126,7 @@ export class FloatProperty extends AbstractProperty<number> {
   }
 }
 
-export class Float2Property extends AbstractProperty<[number, number]> {
+export class Float2Property extends AbstractProperty<Vec2> {
   type = PropertyType.float2;
 
   isValidValue(value: unknown): boolean {

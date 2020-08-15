@@ -67,14 +67,14 @@ export default class GraphNode {
     return [...inputConnections, ...outputConnections];
   }
 
-  createInput(config: IOConfig): Input {
-    const input = new Input(config);
+  createInput(config: Omit<IOConfig, "node">): Input {
+    const input = new Input({ ...config, node: this });
     this.addInput(input);
     return input;
   }
 
-  createOutput(config: IOConfig): Output {
-    const output = new Output(config);
+  createOutput(config: Omit<IOConfig, "node">): Output {
+    const output = new Output({ ...config, node: this });
     this.addOutput(output);
     return output;
   }
@@ -91,6 +91,25 @@ export default class GraphNode {
 
   getInput(name: string): Input | undefined {
     return this.inputs.get(name);
+  }
+
+  getInputs(): Input[] {
+    return [...this.inputs.values()];
+  }
+
+  getInputOffset(input: Input): Vec2 {
+    const inputsArray = [...this.inputs.values()];
+    const inputIndex = inputsArray.indexOf(input);
+
+    if (inputIndex === -1) {
+      throw new Error(`Invalid output parameter.`);
+    }
+
+    const height = this.getNodeHeight();
+    const outputVerticalOffset =
+      height / 2 - (SOCKET_HEIGHT * inputsArray.length) / 2 + SOCKET_HEIGHT / 2;
+
+    return [0, outputVerticalOffset + inputIndex * SOCKET_HEIGHT];
   }
 
   removeInput(input: Input) {
@@ -119,6 +138,27 @@ export default class GraphNode {
 
   getOutput(name: string): Output | undefined {
     return this.outputs.get(name);
+  }
+
+  getOutputs(): Output[] {
+    return [...this.outputs.values()];
+  }
+
+  getOutputOffset(output: Output): Vec2 {
+    const outputsArray = [...this.outputs.values()];
+    const outputIndex = outputsArray.indexOf(output);
+
+    if (outputIndex === -1) {
+      throw new Error(`Invalid output parameter.`);
+    }
+
+    const height = this.getNodeHeight();
+    const outputVerticalOffset =
+      height / 2 -
+      (SOCKET_HEIGHT * outputsArray.length) / 2 +
+      SOCKET_HEIGHT / 2;
+
+    return [NODE_WIDTH, outputVerticalOffset + outputIndex * SOCKET_HEIGHT];
   }
 
   removeOutput(output: Output) {
@@ -176,7 +216,7 @@ export default class GraphNode {
     );
   }
 
-  isUnder(target: [number, number]): boolean {
+  isUnder(target: Vec2): boolean {
     const { position } = this;
     const width = NODE_WIDTH;
     const height = this.getNodeHeight();
@@ -217,29 +257,22 @@ export default class GraphNode {
     ctx.textAlign = "center";
     ctx.fillText(title, NODE_WIDTH / 2, TITLE_HEIGHT / 2, NODE_WIDTH);
 
-    const inputArray = [...inputs.values()];
-    const inputVerticalOffset =
-      height / 2 - (SOCKET_HEIGHT * inputArray.length) / 2 + SOCKET_HEIGHT / 2;
-
-    for (let i = 0; i < inputArray.length; i++) {
+    for (const input of inputs.values()) {
       ctx.save();
 
-      ctx.translate(0, inputVerticalOffset + i * SOCKET_HEIGHT);
-      inputArray[i].draw(ctx, editor);
+      const [offsetX, offsetY] = this.getInputOffset(input);
+      ctx.translate(offsetX, offsetY);
+      input.draw(ctx, editor);
 
       ctx.restore();
     }
 
-    const outputArray = [...outputs.values()];
-    const outputVerticalOffset =
-      height / 2 - (SOCKET_HEIGHT * outputArray.length) / 2 + SOCKET_HEIGHT / 2;
-
-    for (let i = 0; i < outputArray.length; i++) {
+    for (const output of outputs.values()) {
       ctx.save();
 
-      ctx.translate(NODE_WIDTH, outputVerticalOffset + i * SOCKET_HEIGHT);
-      outputArray[i].draw(ctx, editor);
-      ctx.translate(0, SOCKET_HEIGHT);
+      const [offsetX, offsetY] = this.getOutputOffset(output);
+      ctx.translate(offsetX, offsetY);
+      output.draw(ctx, editor);
 
       ctx.restore();
     }

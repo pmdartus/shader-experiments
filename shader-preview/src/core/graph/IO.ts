@@ -1,4 +1,7 @@
+import { Vec2 } from "../types";
 import GraphEditor from "../GraphEditor";
+
+import GraphNode from "./GraphNode";
 
 export enum IOType {
   GrayScale = "GrayScale",
@@ -9,6 +12,7 @@ export enum IOType {
 export interface IOConfig {
   name: string;
   type: IOType;
+  node: GraphNode;
 }
 
 const IO_RADIUS = 6;
@@ -20,13 +24,16 @@ const IO_COLOR_FILL_STYLE = "#da7b10";
 export default abstract class IO {
   readonly name: string;
   readonly type: IOType;
+  readonly node: GraphNode;
 
-  constructor({ name, type }: IOConfig) {
+  constructor({ name, type, node }: IOConfig) {
     this.name = name;
     this.type = type;
+    this.node = node;
   }
 
   abstract getValue(): unknown | null;
+  abstract getPosition(): Vec2;
 
   protected isCompatible(io: IO): boolean {
     return this.type === io.type;

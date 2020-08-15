@@ -21,14 +21,22 @@ function createGraph(): graph.Graph {
   }
 
   const uniform = instance.createNode("Uniform Color");
-  uniform.setPosition([0, 0]);
+  uniform.setPosition([0, 75]);
 
   const albedo = instance.createNode("Output");
   albedo.setPosition([200, 0]);
 
+  const normal = instance.createNode("Output");
+  normal.setPosition([200, 150]);
+
   instance.connect({
     from: uniform.getOutput("output")!,
     to: albedo.getInput("input")!,
+  });
+
+  instance.connect({
+    from: uniform.getOutput("output")!,
+    to: normal.getInput("input")!,
   });
 
   return instance;

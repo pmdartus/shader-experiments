@@ -1,3 +1,5 @@
+import { Vec2 } from "../types";
+
 import IO from "./IO";
 import Input from "./Input";
 import Connection from "./Connection";
@@ -12,6 +14,15 @@ export default class Output extends IO {
 
   setValue(value: unknown) {
     this.value = value;
+  }
+
+  getPosition(): Vec2 {
+    const { node } = this;
+
+    const position = node.getPosition();
+    const offset = node.getOutputOffset(this);
+
+    return [position[0] + offset[0], position[1] + offset[1]];
   }
 
   getConnections(): readonly Connection[] {

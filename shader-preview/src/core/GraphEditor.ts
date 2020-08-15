@@ -89,7 +89,7 @@ export default class GraphEditor {
     const initialPosition = this.getScenePosition([evt.offsetX, evt.offsetY]);
 
     this.state = EditorState.Selecting;
-    this.selection = new Set([]);
+    this.selection = new Set();
     this.selectionRect = null;
 
     const nodeUnderMouse = [...this.graph.nodes]
@@ -112,6 +112,15 @@ export default class GraphEditor {
         xCurrent - xInitial,
         yCurrent - yInitial,
       ];
+
+      this.selection = new Set();
+      for (const node of this.graph.nodes) {
+        const nodePosition = node.getPosition();
+        const nodeHeight = node.getNodeHeight();
+
+        // TODO: Handle node selection
+      }
+
       this.markDirty();
     };
 
