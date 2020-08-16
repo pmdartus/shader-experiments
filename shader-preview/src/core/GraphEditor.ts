@@ -64,7 +64,11 @@ export default class GraphEditor {
   private addListeners() {
     const { graph, canvas } = this;
 
-    graph.addEventListener("nodecreated", () => this.draw());
+    graph.addEventListener("nodecreated", (evt) => {
+      // TODO: Do better job with event handlers.
+      this.selection = new Set([(evt as CustomEvent).detail]);
+      this.draw();
+    });
 
     canvas.addEventListener("mousemove", (evt) =>
       this.handleCanvasMouseMove(evt)
@@ -79,22 +83,68 @@ export default class GraphEditor {
     const mouseButton = getMouseButton(evt);
 
     if (mouseButton === MouseButton.Left) {
-      this.handleGraphSelect(evt);
+      this.handleLeftMouseDown(evt);
     } else if (mouseButton === MouseButton.Middle) {
       this.handleGraphDrag(evt);
     }
   }
 
+  private handleLeftMouseDown(evt: MouseEvent) {
+    const { graph, selection } = this;
+
+    const initialPosition = this.getScenePosition([evt.offsetX, evt.offsetY]);
+
+    const nodeUnderMouse = [...graph.nodes]
+      .reverse()
+      .find((node) => node.isUnder(initialPosition));
+
+    if (nodeUnderMouse && selection.has(nodeUnderMouse)) {
+      this.handleNodeDrag(evt);
+    } else {
+      this.handleGraphSelect(evt);
+    }
+  }
+
+  private handleNodeDrag(evt: MouseEvent) {
+    const updatePosition = (evt: MouseEvent) => {
+      const delta = this.getScenePosition([evt.movementX, evt.movementY]);
+
+      for (const node of this.selection) {
+        const position = node.getPosition();
+        node.setPosition([position[0] + delta[0], position[1] + delta[1]]);
+      }
+
+      this.markDirty();
+    };
+
+    const handleMouseMove = (evt: MouseEvent) => {
+      updatePosition(evt);
+    };
+
+    const handleMouseUp = (evt: MouseEvent) => {
+      updatePosition(evt);
+
+      window.removeEventListener("mousemove", handleMouseMove);
+      window.removeEventListener("mouseup", handleMouseUp);
+    };
+
+    updatePosition(evt);
+
+    window.addEventListener("mousemove", handleMouseMove);
+    window.addEventListener("mouseup", handleMouseUp);
+  }
+
   private handleGraphSelect(evt: MouseEvent) {
     const initialPosition = this.getScenePosition([evt.offsetX, evt.offsetY]);
+
+    const nodeUnderMouse = [...this.graph.nodes]
+      .reverse()
+      .find((node) => node.isUnder(initialPosition));
 
     this.state = EditorState.Selecting;
     this.selection = new Set();
     this.selectionRect = null;
 
-    const nodeUnderMouse = [...this.graph.nodes]
-      .reverse()
-      .find((node) => node.isUnder(initialPosition));
     if (nodeUnderMouse !== undefined) {
       this.selection.add(nodeUnderMouse);
     }
@@ -115,10 +165,19 @@ export default class GraphEditor {
 
       this.selection = new Set();
       for (const node of this.graph.nodes) {
+        const { width: nodeWidth, height: nodeHeight } = node;
         const nodePosition = node.getPosition();
-        const nodeHeight = node.getNodeHeight();
 
-        // TODO: Handle node selection
+        if (
+          !(
+            xInitial >= nodePosition[0] + nodeWidth ||
+            nodePosition[0] >= xCurrent ||
+            yInitial >= nodePosition[1] + nodeHeight ||
+            nodePosition[1] >= yCurrent
+          )
+        ) {
+          this.selection.add(node);
+        }
       }
 
       this.markDirty();

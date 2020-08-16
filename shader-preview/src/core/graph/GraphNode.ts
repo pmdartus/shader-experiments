@@ -98,14 +98,15 @@ export default class GraphNode {
   }
 
   getInputOffset(input: Input): Vec2 {
-    const inputsArray = [...this.inputs.values()];
+    const { height, inputs } = this;
+
+    const inputsArray = [...inputs.values()];
     const inputIndex = inputsArray.indexOf(input);
 
     if (inputIndex === -1) {
       throw new Error(`Invalid output parameter.`);
     }
 
-    const height = this.getNodeHeight();
     const outputVerticalOffset =
       height / 2 - (SOCKET_HEIGHT * inputsArray.length) / 2 + SOCKET_HEIGHT / 2;
 
@@ -145,20 +146,21 @@ export default class GraphNode {
   }
 
   getOutputOffset(output: Output): Vec2 {
-    const outputsArray = [...this.outputs.values()];
+    const { width, height, outputs } = this;
+
+    const outputsArray = [...outputs.values()];
     const outputIndex = outputsArray.indexOf(output);
 
     if (outputIndex === -1) {
       throw new Error(`Invalid output parameter.`);
     }
 
-    const height = this.getNodeHeight();
     const outputVerticalOffset =
       height / 2 -
       (SOCKET_HEIGHT * outputsArray.length) / 2 +
       SOCKET_HEIGHT / 2;
 
-    return [NODE_WIDTH, outputVerticalOffset + outputIndex * SOCKET_HEIGHT];
+    return [width, outputVerticalOffset + outputIndex * SOCKET_HEIGHT];
   }
 
   removeOutput(output: Output) {
@@ -206,7 +208,11 @@ export default class GraphNode {
     console.info("TODO: Handle dirty");
   }
 
-  getNodeHeight(): number {
+  get width(): number {
+    return NODE_WIDTH;
+  }
+
+  get height(): number {
     const { inputs, outputs } = this;
 
     return Math.max(
@@ -217,9 +223,7 @@ export default class GraphNode {
   }
 
   isUnder(target: Vec2): boolean {
-    const { position } = this;
-    const width = NODE_WIDTH;
-    const height = this.getNodeHeight();
+    const { position, width, height } = this;
 
     return (
       target[0] >= position[0] &&
@@ -230,10 +234,8 @@ export default class GraphNode {
   }
 
   draw(ctx: CanvasRenderingContext2D, editor: GraphEditor) {
-    const { position, title, inputs, outputs } = this;
+    const { position, width, height, title, inputs, outputs } = this;
     const { selection } = editor;
-
-    const height = this.getNodeHeight();
 
     ctx.save();
 
@@ -243,19 +245,19 @@ export default class GraphNode {
     ctx.strokeStyle = selection.has(this)
       ? NODE_STROKE_STYLE_SELECTED
       : NODE_STROKE_STYLE;
-    ctx.strokeRect(0, 0, NODE_WIDTH, height);
+    ctx.strokeRect(0, 0, width, height);
 
     ctx.fillStyle = NODE_FILL_STYLE;
-    ctx.fillRect(0, 0, NODE_WIDTH, NODE_WIDTH);
+    ctx.fillRect(0, 0, width, width);
 
     ctx.fillStyle = TILE_FILL_STYLE;
-    ctx.fillRect(0, 0, NODE_WIDTH, TITLE_HEIGHT);
+    ctx.fillRect(0, 0, width, TITLE_HEIGHT);
 
     ctx.font = TITLE_FONT;
     ctx.fillStyle = FONT_FILL_STYLE;
     ctx.textBaseline = "middle";
     ctx.textAlign = "center";
-    ctx.fillText(title, NODE_WIDTH / 2, TITLE_HEIGHT / 2, NODE_WIDTH);
+    ctx.fillText(title, width / 2, TITLE_HEIGHT / 2, width);
 
     for (const input of inputs.values()) {
       ctx.save();
