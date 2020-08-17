@@ -37,9 +37,9 @@ export default class GraphNode {
   readonly title: string;
 
   private position: Vec2 = [0, 0];
-  private inputs = new Map<string, Input>();
-  private outputs = new Map<string, Output>();
-  private properties = new Map<string, Property>();
+  private readonly inputs: Input[] = [];
+  private readonly outputs: Output[] = [];
+  private readonly properties: Property[] = [];
 
   constructor({ graph, title }: GraphNodeConfig) {
     this.id = uuid();
@@ -56,11 +56,11 @@ export default class GraphNode {
   }
 
   getConnections(): Connection[] {
-    const inputConnections = [...this.inputs.values()]
-      .map((input) => input.getConnection())
+    const inputConnections = this.inputs
+      .flatMap((input) => input.getConnection())
       .filter((connection) => connection !== null) as Connection[];
 
-    const outputConnections = [...this.outputs.values()].flatMap((output) =>
+    const outputConnections = this.outputs.flatMap((output) =>
       output.getConnections()
     );
 
@@ -82,19 +82,19 @@ export default class GraphNode {
   addInput(input: Input) {
     const { name } = input;
 
-    if (this.inputs.has(name)) {
+    if (this.getInput(name)) {
       throw new Error(`Input with name "${name}" already exists.`);
     }
 
-    this.inputs.set(name, input);
+    this.inputs.push(input);
   }
 
   getInput(name: string): Input | undefined {
-    return this.inputs.get(name);
+    return this.inputs.find((i) => i.name === name);
   }
 
-  getInputs(): Input[] {
-    return [...this.inputs.values()];
+  getInputs(): readonly Input[] {
+    return this.inputs;
   }
 
   getInputOffset(input: Input): Vec2 {
@@ -113,95 +113,110 @@ export default class GraphNode {
     return [0, outputVerticalOffset + inputIndex * SOCKET_HEIGHT];
   }
 
-  removeInput(input: Input) {
-    const { name } = input;
-
-    const actualInput = this.inputs.get(name);
-    if (input !== actualInput) {
-      throw new Error(
-        `Invalid input parameter, input with name "${name}" maps to another Input instance.`
-      );
+  removeInput(name: string) {
+    const input = this.getInput(name);
+    if (input === undefined) {
+      throw new Error(`Can't find input with name "${name}".`);
     }
 
     input.removeConnection();
-    this.inputs.delete(name);
+
+    const { inputs } = this;
+    inputs.splice(inputs.indexOf(input), 1);
   }
 
   addOutput(output: Output) {
     const { name } = output;
 
-    if (this.inputs.has(name)) {
+    if (this.getOutput(name)) {
       throw new Error(`Output with name "${name}" already exists.`);
     }
 
-    this.outputs.set(name, output);
+    this.outputs.push(output);
   }
 
   getOutput(name: string): Output | undefined {
-    return this.outputs.get(name);
+    return this.outputs.find((o) => o.name === name);
   }
 
-  getOutputs(): Output[] {
-    return [...this.outputs.values()];
+  getOutputs(): readonly Output[] {
+    return this.outputs;
   }
 
   getOutputOffset(output: Output): Vec2 {
     const { width, height, outputs } = this;
 
-    const outputsArray = [...outputs.values()];
-    const outputIndex = outputsArray.indexOf(output);
+    const outputIndex = outputs.indexOf(output);
 
     if (outputIndex === -1) {
       throw new Error(`Invalid output parameter.`);
     }
 
     const outputVerticalOffset =
-      height / 2 -
-      (SOCKET_HEIGHT * outputsArray.length) / 2 +
-      SOCKET_HEIGHT / 2;
+      height / 2 - (SOCKET_HEIGHT * outputs.length) / 2 + SOCKET_HEIGHT / 2;
 
     return [width, outputVerticalOffset + outputIndex * SOCKET_HEIGHT];
   }
 
-  removeOutput(output: Output) {
-    const { name } = output;
-
-    const actualOutput = this.outputs.get(name);
-    if (output !== actualOutput) {
-      throw new Error(
-        `Invalid output parameter, output with name "${name}" maps to another Output instance.`
-      );
+  removeOutput(name: string) {
+    const output = this.getOutput(name);
+    if (output === undefined) {
+      throw new Error(`Can't find output with name "${name}".`);
     }
 
     output.removeConnections();
-    this.outputs.delete(output.name);
+
+    const { outputs } = this;
+    outputs.splice(outputs.indexOf(output), 1);
   }
 
   addProperty(property: Property) {
     const { name } = property;
 
-    if (this.properties.has(name)) {
+    if (this.getProperty(name)) {
       throw new Error(`Property with name "${name}" already exists.`);
     }
 
-    this.properties.set(name, property);
+    this.properties.push(property);
   }
 
   getProperty(name: string): Property | undefined {
-    return this.properties.get(name);
+    return this.properties.find((p) => p.name === name);
   }
 
-  removeProperty(property: Property) {
-    const { name } = property;
-
-    const actualProperty = this.properties.get(name);
-    if (property !== actualProperty) {
-      throw new Error(
-        `Invalid property parameter, property with name "${name}" maps to another Property instance.`
-      );
+  removeProperty(name: string) {
+    const property = this.getProperty(name);
+    if (property === undefined) {
+      throw new Error(`Can't find property with name "${name}".`);
     }
 
-    this.properties.delete(property.name);
+    const { properties } = this;
+    properties.splice(properties.indexOf(property), 1);
+  }
+
+  handleClick(evt: MouseEvent) {
+    evt.preventDefault();
+    console.log("TODO: Handle click");
+  }
+
+  handleDoubleClick(evt: MouseEvent) {
+    evt.preventDefault();
+    console.log("TODO: Double click");
+  }
+
+  handleDrag(evt: MouseEvent) {
+    evt.preventDefault();
+
+    const {
+      graph: { zoom },
+      position,
+    } = this;
+    const { movementX, movementY } = evt;
+
+    this.position = [
+      position[0] + movementX / zoom,
+      position[1] + movementY / zoom,
+    ];
   }
 
   markDirty() {
@@ -217,8 +232,8 @@ export default class GraphNode {
 
     return Math.max(
       NODE_MIN_HEIGHT,
-      inputs.size * SOCKET_HEIGHT,
-      outputs.size * SOCKET_HEIGHT
+      inputs.length * SOCKET_HEIGHT,
+      outputs.length * SOCKET_HEIGHT
     );
   }
 

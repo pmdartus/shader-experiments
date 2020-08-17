@@ -39,8 +39,6 @@ export default class GraphEditor {
   selection: Set<GraphNode> = new Set();
   selectionRect: [number, number, number, number] | null = null;
 
-  position: [number, number] = [0, 0];
-  zoom: number = 1;
   isDirty: boolean = false;
 
   constructor(canvas: HTMLCanvasElement, graph: Graph) {
@@ -70,203 +68,175 @@ export default class GraphEditor {
       this.draw();
     });
 
-    canvas.addEventListener("mousemove", (evt) =>
-      this.handleCanvasMouseMove(evt)
-    );
-    canvas.addEventListener("mousedown", (evt) =>
-      this.handleCanvasMouseDown(evt)
-    );
-    canvas.addEventListener("wheel", (evt) => this.handleCanvasWheel(evt));
-  }
+    canvas.addEventListener("click", (evt) => {
+      const target = this.getTarget(evt);
 
-  private handleCanvasMouseDown(evt: MouseEvent) {
-    const mouseButton = getMouseButton(evt);
-
-    if (mouseButton === MouseButton.Left) {
-      this.handleLeftMouseDown(evt);
-    } else if (mouseButton === MouseButton.Middle) {
-      this.handleGraphDrag(evt);
-    }
-  }
-
-  private handleLeftMouseDown(evt: MouseEvent) {
-    const { graph, selection } = this;
-
-    const initialPosition = this.getScenePosition([evt.offsetX, evt.offsetY]);
-
-    const nodeUnderMouse = [...graph.nodes]
-      .reverse()
-      .find((node) => node.isUnder(initialPosition));
-
-    if (nodeUnderMouse && selection.has(nodeUnderMouse)) {
-      this.handleNodeDrag(evt);
-    } else {
-      this.handleGraphSelect(evt);
-    }
-  }
-
-  private handleNodeDrag(evt: MouseEvent) {
-    const updatePosition = (evt: MouseEvent) => {
-      const delta = this.getScenePosition([evt.movementX, evt.movementY]);
-
-      for (const node of this.selection) {
-        const position = node.getPosition();
-        node.setPosition([position[0] + delta[0], position[1] + delta[1]]);
+      if (target) {
+        target.handleClick(evt);
+      } else {
+        this.selection = new Set();
       }
 
       this.markDirty();
-    };
+    });
 
-    const handleMouseMove = (evt: MouseEvent) => {
-      updatePosition(evt);
-    };
+    canvas.addEventListener("dblclick", (evt) => {
+      const target = this.getTarget(evt);
 
-    const handleMouseUp = (evt: MouseEvent) => {
-      updatePosition(evt);
+      if (target) {
+        target.handleDoubleClick(evt);
+      }
 
-      window.removeEventListener("mousemove", handleMouseMove);
-      window.removeEventListener("mouseup", handleMouseUp);
-    };
+      this.markDirty();
+    });
 
-    updatePosition(evt);
+    canvas.addEventListener("mousedown", (evt) => {
+      const target = this.getTarget(evt);
+      const mouseButton = getMouseButton(evt);
 
-    window.addEventListener("mousemove", handleMouseMove);
-    window.addEventListener("mouseup", handleMouseUp);
-  }
+      // Handle graph dragging.
+      if (mouseButton === MouseButton.Middle) {
+        const handleMouseMove = (evt: MouseEvent) => {
+          this.graph.handleDrag(evt);
+          this.markDirty();
+        };
 
-  private handleGraphSelect(evt: MouseEvent) {
-    const initialPosition = this.getScenePosition([evt.offsetX, evt.offsetY]);
+        const handleMouseUp = (evt: MouseEvent) => {
+          window.removeEventListener("mousemove", handleMouseMove);
+          window.removeEventListener("mouseup", handleMouseUp);
 
-    const nodeUnderMouse = [...this.graph.nodes]
-      .reverse()
-      .find((node) => node.isUnder(initialPosition));
+          this.graph.handleDrag(evt);
+          this.markDirty();
+        };
 
-    this.state = EditorState.Selecting;
-    this.selection = new Set();
-    this.selectionRect = null;
+        window.addEventListener("mousemove", handleMouseMove);
+        window.addEventListener("mouseup", handleMouseUp);
 
-    if (nodeUnderMouse !== undefined) {
-      this.selection.add(nodeUnderMouse);
-    }
+        this.graph.handleDrag(evt);
+        this.markDirty();
 
-    const handleMouseMove = (evt: MouseEvent) => {
-      const [xInitial, yInitial] = initialPosition;
-      const [xCurrent, yCurrent] = this.getScenePosition([
-        evt.offsetX,
-        evt.offsetY,
-      ]);
+        return;
+      }
 
-      this.selectionRect = [
-        xInitial,
-        yInitial,
-        xCurrent - xInitial,
-        yCurrent - yInitial,
-      ];
-
-      this.selection = new Set();
-      for (const node of this.graph.nodes) {
-        const { width: nodeWidth, height: nodeHeight } = node;
-        const nodePosition = node.getPosition();
-
-        if (
-          !(
-            xInitial >= nodePosition[0] + nodeWidth ||
-            nodePosition[0] >= xCurrent ||
-            yInitial >= nodePosition[1] + nodeHeight ||
-            nodePosition[1] >= yCurrent
-          )
-        ) {
-          this.selection.add(node);
+      // Handle node dragging.
+      if (mouseButton === MouseButton.Left && target !== undefined) {
+        if (!this.selection.has(target)) {
+          this.selection = new Set([target]);
         }
+
+        const handleSelectionDrag = (evt: MouseEvent) => {
+          for (const node of this.selection) {
+            node.handleDrag(evt);
+          }
+        };
+
+        const handleMouseMove = (evt: MouseEvent) => {
+          handleSelectionDrag(evt);
+          this.markDirty();
+        };
+
+        const handleMouseUp = (evt: MouseEvent) => {
+          window.removeEventListener("mousemove", handleMouseMove);
+          window.removeEventListener("mouseup", handleMouseUp);
+
+          handleSelectionDrag(evt);
+          this.markDirty();
+        };
+
+        window.addEventListener("mousemove", handleMouseMove);
+        window.addEventListener("mouseup", handleMouseUp);
+
+        handleSelectionDrag(evt);
+        this.markDirty();
+
+        return;
       }
+    });
 
+    canvas.addEventListener("wheel", (evt) => {
+      this.graph.handleWheel(evt);
       this.markDirty();
-    };
-
-    const handleMouseUp = (evt: MouseEvent) => {
-      this.state = EditorState.Idle;
-      this.selectionRect = null;
-
-      this.markDirty();
-
-      window.removeEventListener("mousemove", handleMouseMove);
-      window.removeEventListener("mouseup", handleMouseUp);
-    };
-
-    this.markDirty();
-
-    window.addEventListener("mousemove", handleMouseMove);
-    window.addEventListener("mouseup", handleMouseUp);
+    });
   }
 
-  private handleGraphDrag(evt: MouseEvent) {
-    this.state = EditorState.Dragging;
+  private getTarget(evt: MouseEvent): GraphNode | undefined {
+    const { graph } = this;
+    const { nodes } = graph;
 
-    const updatePosition = (evt: MouseEvent) => {
-      const { position, zoom } = this;
-      const { movementX, movementY } = evt;
+    const position = this.graph.getScenePosition([evt.offsetX, evt.offsetY]);
 
-      this.position = [
-        position[0] + movementX / zoom,
-        position[1] + movementY / zoom,
-      ];
-
-      this.markDirty();
-    };
-
-    const handleMouseMove = (evt: MouseEvent) => {
-      updatePosition(evt);
-    };
-
-    const handleMouseUp = (evt: MouseEvent) => {
-      this.state = EditorState.Idle;
-
-      updatePosition(evt);
-
-      window.removeEventListener("mousemove", handleMouseMove);
-      window.removeEventListener("mouseup", handleMouseUp);
-    };
-
-    updatePosition(evt);
-
-    window.addEventListener("mousemove", handleMouseMove);
-    window.addEventListener("mouseup", handleMouseUp);
+    for (let i = nodes.length - 1; i > 0; i--) {
+      const node = nodes[i];
+      if (node.isUnder(position)) {
+        return node;
+      }
+    }
   }
 
-  private handleCanvasWheel(evt: WheelEvent) {
-    evt.preventDefault();
-    evt.stopPropagation();
+  // private handleGraphSelect(evt: MouseEvent) {
+  //   const initialPosition = this.getScenePosition([evt.offsetX, evt.offsetY]);
 
-    const { offsetX, offsetY } = evt;
+  //   const nodeUnderMouse = [...this.graph.nodes]
+  //     .reverse()
+  //     .find((node) => node.isUnder(initialPosition));
 
-    const originalMousePosition = this.getScenePosition([offsetX, offsetY]);
+  //   this.state = EditorState.Selecting;
+  //   this.selection = new Set();
+  //   this.selectionRect = null;
 
-    // https://stackoverflow.com/a/57899935
-    // Make zoom change proportionate to the current zoom level.
-    this.zoom = this.zoom * Math.pow(2, evt.deltaY * -0.01);
+  //   if (nodeUnderMouse !== undefined) {
+  //     this.selection.add(nodeUnderMouse);
+  //   }
 
-    const updatedMousePosition = this.getScenePosition([offsetX, offsetY]);
+  //   const handleMouseMove = (evt: MouseEvent) => {
+  //     const [xInitial, yInitial] = initialPosition;
+  //     const [xCurrent, yCurrent] = this.getScenePosition([
+  //       evt.offsetX,
+  //       evt.offsetY,
+  //     ]);
 
-    this.position = [
-      this.position[0] + (updatedMousePosition[0] - originalMousePosition[0]),
-      this.position[1] + (updatedMousePosition[1] - originalMousePosition[1]),
-    ];
+  //     this.selectionRect = [
+  //       xInitial,
+  //       yInitial,
+  //       xCurrent - xInitial,
+  //       yCurrent - yInitial,
+  //     ];
 
-    this.markDirty();
-  }
+  //     this.selection = new Set();
+  //     for (const node of this.graph.nodes) {
+  //       const { width: nodeWidth, height: nodeHeight } = node;
+  //       const nodePosition = node.getPosition();
 
-  private getScenePosition(viewPosition: [number, number]): [number, number] {
-    const { position, zoom } = this;
+  //       if (
+  //         !(
+  //           xInitial >= nodePosition[0] + nodeWidth ||
+  //           nodePosition[0] >= xCurrent ||
+  //           yInitial >= nodePosition[1] + nodeHeight ||
+  //           nodePosition[1] >= yCurrent
+  //         )
+  //       ) {
+  //         this.selection.add(node);
+  //       }
+  //     }
 
-    return [
-      viewPosition[0] / zoom - position[0],
-      viewPosition[1] / zoom - position[1],
-    ];
-  }
+  //     this.markDirty();
+  //   };
 
-  private handleCanvasMouseMove(evt: MouseEvent) {
-    const position = this.getScenePosition([evt.offsetX, evt.offsetY]);
-  }
+  //   const handleMouseUp = (evt: MouseEvent) => {
+  //     this.state = EditorState.Idle;
+  //     this.selectionRect = null;
+
+  //     this.markDirty();
+
+  //     window.removeEventListener("mousemove", handleMouseMove);
+  //     window.removeEventListener("mouseup", handleMouseUp);
+  //   };
+
+  //   this.markDirty();
+
+  //   window.addEventListener("mousemove", handleMouseMove);
+  //   window.addEventListener("mouseup", handleMouseUp);
+  // }
 
   private markDirty() {
     if (this.isDirty === true) {
@@ -281,16 +251,13 @@ export default class GraphEditor {
   }
 
   private draw() {
-    const { ctx, canvas, position, zoom, graph, selectionRect } = this;
+    const { ctx, canvas, graph, selectionRect } = this;
 
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
     ctx.fillStyle = "rgb(50, 50, 50)";
     ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-    ctx.scale(zoom, zoom);
-    ctx.translate(position[0], position[1]);
 
     if (selectionRect !== null) {
       ctx.fillStyle = SELECTION_RECT_FILL_STYLE;
